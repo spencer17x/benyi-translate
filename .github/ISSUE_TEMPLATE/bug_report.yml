@@ -1,0 +1,52 @@
+name: Bug 报告
+description: 报告可复现的问题或页面兼容性故障
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请不要粘贴私人网页正文、账号信息或访问令牌。
+  - type: input
+    id: chrome-version
+    attributes:
+      label: Chrome 版本
+      placeholder: 例如 149.0.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统
+      options:
+        - Windows 10/11
+        - macOS 13+
+        - Linux
+        - ChromeOS
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请提供不包含敏感正文的最小复现步骤。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 脱敏诊断信息
+      description: 可选。请确认其中没有网页正文或私人数据。

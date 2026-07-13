@@ -1,0 +1,30 @@
+name: 功能建议
+description: 提议新的用户能力或体验改进
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的问题
+      description: 请描述用户场景和当前困难，而不仅是实现方式。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: 隐私与权限影响
+      description: 是否需要新的网络请求、数据存储或扩展权限？
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 可选方案
+      description: 可选。请列出考虑过的其他方式。
