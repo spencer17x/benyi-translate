@@ -71,16 +71,16 @@ benyi-translate/
 安装依赖并运行全部检查：
 
 ```bash
-npm install
-npm run check
+pnpm install
+pnpm run check
 ```
 
-`npm run check` 会依次执行 TypeScript 类型检查、单元测试和扩展构建，构建产物位于 `dist/`。
+`pnpm run check` 会依次执行 TypeScript 类型检查、单元测试和扩展构建，构建产物位于 `dist/`。
 
 在 Chrome 中打开 `chrome://extensions`，启用开发者模式，选择“加载已解压的扩展程序”并指向本仓库的 `dist/`。随后可以启动固定英文夹具：
 
 ```bash
-npm run fixture
+pnpm run fixture
 ```
 
 访问 `http://127.0.0.1:4173/`，点击本译扩展图标打开 Side Panel，再通过“开始翻译”触发本地语言资源准备和页面翻译。

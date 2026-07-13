@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.5.0",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "check": "npm run typecheck && npm test && npm run build",
+    "check": "pnpm run typecheck && pnpm test && pnpm run build",
     "fixture": "node scripts/serve-fixture.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

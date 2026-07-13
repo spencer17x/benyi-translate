@@ -26,13 +26,13 @@
 首次开发先安装依赖：
 
 ```bash
-npm install
+pnpm install
 ```
 
 提交前运行：
 
 ```bash
-npm run check
+pnpm run check
 ```
 
 该命令会执行类型检查、单元测试并构建可加载的 `dist/` 扩展产物。
