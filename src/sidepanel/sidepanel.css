@@ -1,0 +1,297 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: #f4f6f2;
+  color: #18201b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 300px;
+  background:
+    radial-gradient(circle at top right, rgba(74, 132, 91, 0.12), transparent 42%),
+    #f4f6f2;
+}
+
+button,
+progress {
+  font: inherit;
+}
+
+.panel {
+  display: grid;
+  gap: 14px;
+  padding: 20px 16px 24px;
+}
+
+.brand,
+.section-heading,
+.primary-actions,
+.segmented,
+dl,
+dl div {
+  display: flex;
+  align-items: center;
+}
+
+.brand,
+.section-heading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+h2 {
+  font-size: 15px;
+}
+
+.eyebrow {
+  margin-bottom: 3px;
+  color: #667068;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.privacy-badge {
+  border: 1px solid #c9d7cc;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #316341;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.card {
+  border: 1px solid rgba(24, 32, 27, 0.09);
+  border-radius: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10px 28px rgba(37, 54, 43, 0.07);
+}
+
+.card.compact {
+  padding: 14px;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #a2aaa4;
+  box-shadow: 0 0 0 4px rgba(162, 170, 164, 0.14);
+}
+
+.status-dot[data-state="active"] {
+  background: #2d7d46;
+  box-shadow: 0 0 0 4px rgba(45, 125, 70, 0.14);
+}
+
+.status-dot[data-state="error"] {
+  background: #b8493f;
+  box-shadow: 0 0 0 4px rgba(184, 73, 63, 0.14);
+}
+
+.status {
+  min-height: 42px;
+  padding: 16px 0 14px;
+  color: #566159;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.progress-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+  color: #667068;
+  font-size: 11px;
+}
+
+.progress-wrap[hidden] {
+  display: none;
+}
+
+progress {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  accent-color: #2d7d46;
+}
+
+.primary-actions {
+  gap: 8px;
+}
+
+.button,
+.segmented button {
+  min-height: 38px;
+  border: 1px solid #d6ddd7;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #fff;
+  color: #253029;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.button:hover:not(:disabled),
+.segmented button:hover,
+.text-button:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+.button:focus-visible,
+.segmented button:focus-visible,
+.text-button:focus-visible {
+  outline: 3px solid rgba(45, 125, 70, 0.28);
+  outline-offset: 2px;
+}
+
+.button:disabled,
+.text-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.button-primary {
+  flex: 1;
+  border-color: #286d3d;
+  background: #2d7d46;
+  color: #fff;
+}
+
+.button-danger {
+  color: #a23c34;
+}
+
+.segmented {
+  margin-top: 12px;
+}
+
+.segmented button {
+  flex: 1;
+  border-radius: 0;
+  font-size: 12px;
+}
+
+.segmented button:first-child {
+  border-radius: 10px 0 0 10px;
+}
+
+.segmented button:last-child {
+  border-radius: 0 10px 10px 0;
+}
+
+.segmented button + button {
+  margin-left: -1px;
+}
+
+.segmented button[aria-pressed="true"] {
+  position: relative;
+  z-index: 1;
+  border-color: #4f8060;
+  background: #e8f1ea;
+  color: #245d36;
+}
+
+.text-button {
+  border: 0;
+  padding: 4px;
+  background: transparent;
+  color: #2d7042;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+dl {
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+dl div {
+  flex: 1;
+  justify-content: space-between;
+  border-radius: 10px;
+  padding: 9px;
+  background: #f3f6f3;
+}
+
+dt {
+  color: #6a746d;
+  font-size: 11px;
+}
+
+dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.footnote {
+  padding: 0 5px;
+  color: #7a837c;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root,
+  body {
+    background: #111713;
+    color: #edf2ee;
+  }
+
+  body {
+    background: radial-gradient(circle at top right, rgba(69, 135, 88, 0.13), transparent 42%), #111713;
+  }
+
+  .card,
+  .privacy-badge {
+    border-color: rgba(237, 242, 238, 0.1);
+    background: rgba(28, 37, 31, 0.92);
+  }
+
+  .button,
+  .segmented button {
+    border-color: #3a473e;
+    background: #202a23;
+    color: #e5ebe7;
+  }
+
+  .button-primary {
+    border-color: #4b9b63;
+    background: #347f4c;
+    color: #fff;
+  }
+
+  .segmented button[aria-pressed="true"],
+  dl div {
+    background: #25372a;
+    color: #a8dfb8;
+  }
+}

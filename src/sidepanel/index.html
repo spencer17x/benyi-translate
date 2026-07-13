@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>本译</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <header class="brand">
+        <div>
+          <p class="eyebrow">本地网页翻译</p>
+          <h1>本译</h1>
+        </div>
+        <span class="privacy-badge">正文不上传</span>
+      </header>
+
+      <section class="card" aria-labelledby="translation-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">当前页面</p>
+            <h2 id="translation-heading">英语 → 简体中文</h2>
+          </div>
+          <span id="status-dot" class="status-dot" aria-hidden="true"></span>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite">正在连接当前页面…</p>
+
+        <div id="progress-wrap" class="progress-wrap" hidden>
+          <progress id="progress" max="1" value="0"></progress>
+          <span id="progress-label">0 / 0</span>
+        </div>
+
+        <div class="primary-actions">
+          <button id="start" class="button button-primary" type="button" disabled>开始翻译</button>
+          <button id="pause" class="button" type="button" hidden>暂停</button>
+          <button id="cancel" class="button button-danger" type="button" hidden>取消</button>
+        </div>
+      </section>
+
+      <section class="card compact" aria-labelledby="display-heading">
+        <h2 id="display-heading">显示方式</h2>
+        <div class="segmented" role="group" aria-label="译文显示方式">
+          <button type="button" data-mode="original">原文</button>
+          <button type="button" data-mode="bilingual" aria-pressed="true">双语</button>
+          <button type="button" data-mode="translation">仅译文</button>
+        </div>
+      </section>
+
+      <section class="card compact details" aria-labelledby="details-heading">
+        <div class="section-heading">
+          <h2 id="details-heading">本页状态</h2>
+          <button id="undo" class="text-button" type="button" disabled>撤销全部译文</button>
+        </div>
+        <dl>
+          <div><dt>段落</dt><dd id="metric-total">0</dd></div>
+          <div><dt>已完成</dt><dd id="metric-completed">0</dd></div>
+          <div><dt>失败</dt><dd id="metric-failed">0</dd></div>
+        </dl>
+      </section>
+
+      <p class="footnote">首次使用某个语言对时，Chrome 可能需要下载本地语言资源。</p>
+    </main>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

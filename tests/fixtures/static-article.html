@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Benyi static article fixture</title>
+    <style>
+      body {
+        max-width: 720px;
+        margin: 48px auto;
+        padding: 0 24px;
+        font: 18px/1.7 Georgia, serif;
+      }
+      code {
+        padding: 2px 4px;
+        background: #eef1ee;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>A quiet test page for local translation</h1>
+      <p>
+        This fixture contains ordinary article text, inline links, and several semantic block types.
+        It is intentionally small enough for manual extension testing.
+      </p>
+      <p>
+        The original page must remain readable while translation is running. Visit
+        <a href="https://example.com">this example link</a> to confirm inline content is preserved.
+      </p>
+      <blockquote>
+        A translation should appear near this quotation without interpreting translated text as HTML.
+      </blockquote>
+      <ol>
+        <li>Visible content should receive the highest queue priority.</li>
+        <li>List numbering should remain stable after translations are inserted.</li>
+      </ol>
+      <pre><code>console.log("Code blocks are excluded in the first version.");</code></pre>
+    </main>
+  </body>
+</html>
