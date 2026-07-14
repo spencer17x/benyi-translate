@@ -9,18 +9,18 @@
   <body>
     <main class="panel">
       <header class="brand">
-        <div>
+        <div class="brand-copy">
           <p class="eyebrow">本地网页翻译</p>
-          <h1>本译</h1>
+          <h1>本译 <span class="wordmark-latin">Benyi</span></h1>
         </div>
         <span class="privacy-badge">正文不上传</span>
       </header>
 
-      <section class="card" aria-labelledby="translation-heading">
+      <section class="card hero-card" aria-labelledby="translation-heading">
         <div class="section-heading">
           <div>
             <p class="eyebrow">当前页面</p>
-            <h2 id="translation-heading">英语 → 简体中文</h2>
+            <h2 id="translation-heading">英语 <span class="language-arrow">→</span> 简体中文</h2>
           </div>
           <span id="status-dot" class="status-dot" aria-hidden="true"></span>
         </div>
@@ -37,10 +37,18 @@
           <button id="pause" class="button" type="button" hidden>暂停</button>
           <button id="cancel" class="button button-danger" type="button" hidden>取消</button>
         </div>
+
+        <p id="shortcut-hint" class="shortcut-hint" aria-label="打开本译快捷键">
+          <span id="shortcut-copy">快速打开本译</span>
+          <kbd id="shortcut-key">读取中…</kbd>
+        </p>
       </section>
 
       <section class="card compact" aria-labelledby="display-heading">
-        <h2 id="display-heading">显示方式</h2>
+        <div class="section-copy">
+          <h2 id="display-heading">显示方式</h2>
+          <p>随时切换，不会修改网页原文</p>
+        </div>
         <div class="segmented" role="group" aria-label="译文显示方式">
           <button type="button" data-mode="original">原文</button>
           <button type="button" data-mode="bilingual" aria-pressed="true">双语</button>
@@ -60,7 +68,10 @@
         </dl>
       </section>
 
-      <p class="footnote">首次使用某个语言对时，Chrome 可能需要下载本地语言资源。</p>
+      <footer class="panel-footer">
+        <p>首次使用某个语言对时，Chrome 可能需要下载本地语言资源。</p>
+        <p>快捷键可在 Chrome 扩展快捷键页面中修改。</p>
+      </footer>
     </main>
 
     <script type="module" src="sidepanel.js"></script>

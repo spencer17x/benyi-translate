@@ -34,6 +34,9 @@ const undoButton = requiredElement<HTMLButtonElement>("undo");
 const totalMetric = requiredElement<HTMLElement>("metric-total");
 const completedMetric = requiredElement<HTMLElement>("metric-completed");
 const failedMetric = requiredElement<HTMLElement>("metric-failed");
+const shortcutHint = requiredElement<HTMLParagraphElement>("shortcut-hint");
+const shortcutCopy = requiredElement<HTMLSpanElement>("shortcut-copy");
+const shortcutKey = requiredElement<HTMLElement>("shortcut-key");
 const modeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-mode]"));
 
 let activeTabId: number | undefined;
@@ -90,6 +93,25 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
 });
 
 scheduleConnection();
+void renderShortcutHint();
+
+async function renderShortcutHint(): Promise<void> {
+  try {
+    const command = (await chrome.commands.getAll()).find((item) => item.name === "_execute_action");
+    const shortcut = command?.shortcut?.trim();
+    if (shortcut) {
+      shortcutCopy.textContent = "快速打开本译";
+      shortcutKey.textContent = shortcut;
+      shortcutHint.dataset.assigned = "true";
+      return;
+    }
+  } catch {
+    // Keep the unassigned hint when Chrome cannot expose command state.
+  }
+  shortcutCopy.textContent = "快捷键未分配";
+  shortcutKey.textContent = "未分配";
+  shortcutHint.dataset.assigned = "false";
+}
 
 function scheduleConnection(): void {
   if (connectionInFlight) {
@@ -582,7 +604,12 @@ function renderControls(): void {
   const connected = activePort !== undefined && pageId !== undefined;
   const busy = localPreparing || taskStatus === "collecting" || taskStatus === "preparing" || taskStatus === "translating";
   startButton.disabled = !connected || busy;
-  startButton.textContent = taskStatus === "paused" ? "继续翻译" : "开始翻译";
+  startButton.textContent =
+    taskStatus === "paused"
+      ? "继续翻译"
+      : taskStatus === "completed" || taskStatus === "cancelled" || taskStatus === "failed"
+        ? "重新翻译"
+        : "开始翻译";
   startButton.hidden = taskStatus === "translating" || localPreparing;
   pauseButton.hidden = taskStatus !== "translating";
   cancelButton.hidden = !busy && taskStatus !== "paused";
@@ -593,7 +620,7 @@ function renderControls(): void {
 function renderStatusFromTask(): void {
   switch (taskStatus) {
     case "idle":
-      setStatus("已连接。点击开始后，正文只会交给 Chrome 的本地翻译能力。", "neutral");
+      setStatus("已连接。正文只会交给 Chrome 的本地翻译能力。", "neutral");
       break;
     case "collecting":
       setStatus("正在发现当前页面中的可阅读正文…", "active");
@@ -611,7 +638,7 @@ function renderStatusFromTask(): void {
       setStatus("翻译已取消，已完成的译文仍保留。", "neutral");
       break;
     case "completed":
-      setStatus("当前页面翻译完成。", "active");
+      setStatus("当前页面翻译完成，可切换显示方式或重新翻译。", "active");
       break;
     case "failed":
       setStatus("翻译没有完成，请重试。", "error");

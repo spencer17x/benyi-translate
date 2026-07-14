@@ -12,6 +12,14 @@
   "action": {
     "default_title": "打开本译"
   },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      }
+    }
+  },
   "side_panel": {
     "default_path": "sidepanel/index.html"
   },
