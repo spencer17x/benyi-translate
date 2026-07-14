@@ -8,9 +8,18 @@ const src = resolve(root, "src");
 const dist = resolve(root, "dist");
 
 await rm(dist, { recursive: true, force: true });
-await mkdir(resolve(dist, "sidepanel"), { recursive: true });
+await Promise.all([
+  mkdir(resolve(dist, "assets/icons"), { recursive: true }),
+  mkdir(resolve(dist, "sidepanel"), { recursive: true }),
+]);
 
 await Promise.all([
+  ...[16, 32, 48, 128].map((size) =>
+    cp(
+      resolve(src, `assets/icons/benyi-logo-${size}.png`),
+      resolve(dist, `assets/icons/benyi-logo-${size}.png`),
+    ),
+  ),
   cp(resolve(src, "manifest.json"), resolve(dist, "manifest.json")),
   cp(resolve(src, "sidepanel/index.html"), resolve(dist, "sidepanel/index.html")),
   cp(resolve(src, "sidepanel/sidepanel.css"), resolve(dist, "sidepanel/sidepanel.css")),

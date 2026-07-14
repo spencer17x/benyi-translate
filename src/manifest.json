@@ -4,13 +4,23 @@
   "description": "本地运行、保留本意的隐私优先双语网页翻译。",
   "version": "0.1.0",
   "minimum_chrome_version": "138",
+  "icons": {
+    "16": "assets/icons/benyi-logo-16.png",
+    "32": "assets/icons/benyi-logo-32.png",
+    "48": "assets/icons/benyi-logo-48.png",
+    "128": "assets/icons/benyi-logo-128.png"
+  },
   "permissions": ["activeTab", "scripting", "storage", "sidePanel"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
   },
   "action": {
-    "default_title": "打开本译"
+    "default_title": "打开本译",
+    "default_icon": {
+      "16": "assets/icons/benyi-logo-16.png",
+      "32": "assets/icons/benyi-logo-32.png"
+    }
   },
   "commands": {
     "_execute_action": {
