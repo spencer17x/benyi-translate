@@ -171,6 +171,8 @@ script, style, noscript, textarea, input, select, option,
 
 首版默认跳过 `pre`、`code`、SVG 和 Canvas；用户可在后续版本中为代码块单独开启翻译。
 
+站点适配器可以在不扩大通用选择器的前提下补充经过验证的正文容器。当前 X/Twitter 适配器识别 `[data-testid="tweetText"]`，并优先使用正文节点的 `lang`，避免中文界面语言覆盖英文帖子语言。
+
 ### 4.2 可见性
 
 - 使用布局信息和 `IntersectionObserver` 判断视口及临近区域。

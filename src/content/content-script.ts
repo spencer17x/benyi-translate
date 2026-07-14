@@ -22,6 +22,7 @@ import {
   shouldSkipText,
 } from "../shared/text";
 import { createId } from "../shared/id";
+import { candidateSelector, preferredDeclaredLanguage } from "./candidates";
 import {
   applyDisplayMode,
   clearTranslationUi,
@@ -33,7 +34,6 @@ declare global {
   var __benyiContentScriptLoaded: boolean | undefined;
 }
 
-const SUPPORTED_SELECTOR = "h1, h2, h3, h4, h5, h6, p, li, blockquote";
 const EXCLUDED_SELECTOR = [
   "script",
   "style",
@@ -79,6 +79,7 @@ if (!globalThis.__benyiContentScriptLoaded) {
 }
 
 function initializeContentScript(): void {
+  const supportedSelector = candidateSelector(location.hostname);
   let pageId = createId();
   let activeTask: PageTask | undefined;
   let activePort: chrome.runtime.Port | undefined;
@@ -244,7 +245,7 @@ function initializeContentScript(): void {
 
   async function discoverSegments(): Promise<void> {
     if (!activeTask) return;
-    const elements = Array.from(document.querySelectorAll<HTMLElement>(SUPPORTED_SELECTOR));
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(supportedSelector));
 
     for (let index = 0; index < elements.length; index += 1) {
       const element = elements[index];
@@ -313,7 +314,10 @@ function initializeContentScript(): void {
       version: PROTOCOL_VERSION,
       type: "PAGE_COLLECTION",
       ...identity(),
-      declaredLanguage: document.documentElement.lang || undefined,
+      declaredLanguage: preferredDeclaredLanguage(
+        sorted.map((state) => state.element),
+        document.documentElement.lang || undefined,
+      ),
       sourceSample,
       total: activeTask.segments.size,
     });
@@ -504,7 +508,7 @@ function initializeContentScript(): void {
 
   function isReadableElement(element: HTMLElement): boolean {
     if (element.closest(EXCLUDED_SELECTOR)) return false;
-    if (element.querySelector(SUPPORTED_SELECTOR)) return false;
+    if (element.querySelector(supportedSelector)) return false;
     if (element.hidden || element.getAttribute("aria-hidden") === "true") return false;
     if (element.getClientRects().length === 0) return false;
     const style = getComputedStyle(element);

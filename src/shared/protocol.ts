@@ -99,6 +99,7 @@ export type PageToPanelMessage =
 
 export type PingMessage = { version: 1; type: "BENYI_PING" };
 export type PingResponse = { version: 1; type: "BENYI_PONG"; pageId: string };
+export type ActionReadyMessage = { version: 1; type: "ACTION_READY"; tabId: number };
 
 export function isPanelToPageMessage(value: unknown): value is PanelToPageMessage {
   if (!isProtocolRecord(value)) return false;
@@ -184,6 +185,10 @@ export function isPageToPanelMessage(value: unknown): value is PageToPanelMessag
 
 export function isPingMessage(value: unknown): value is PingMessage {
   return isProtocolRecord(value) && value.type === "BENYI_PING";
+}
+
+export function isActionReadyMessage(value: unknown): value is ActionReadyMessage {
+  return isProtocolRecord(value) && value.type === "ACTION_READY" && isSafeTabId(value.tabId);
 }
 
 export function isDisplayMode(value: unknown): value is DisplayMode {

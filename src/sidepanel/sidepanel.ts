@@ -1,4 +1,5 @@
 import {
+  isActionReadyMessage,
   isPageToPanelMessage,
   PROTOCOL_VERSION,
   TASK_PORT_NAME,
@@ -15,6 +16,7 @@ import {
 } from "../shared/protocol";
 import { createId } from "../shared/id";
 import { translateText } from "../translation/translate";
+import { injectionErrorCode } from "./access";
 
 const SOURCE_LANGUAGE = "en";
 const TARGET_LANGUAGE = "zh";
@@ -54,6 +56,8 @@ let translator: Translator | undefined;
 let detector: LanguageDetector | undefined;
 let preparationController: AbortController | undefined;
 let translationController: AbortController | undefined;
+let connectionInFlight: Promise<void> | undefined;
+let reconnectRequested = false;
 
 startButton.addEventListener("click", () => {
   void startOrResumeTranslation();
@@ -75,10 +79,31 @@ for (const button of modeButtons) {
 }
 
 chrome.tabs.onActivated.addListener(() => {
-  void connectToActiveTab();
+  scheduleConnection();
 });
 
-void connectToActiveTab();
+chrome.runtime.onMessage.addListener((message: unknown) => {
+  if (!isActionReadyMessage(message)) return false;
+  if (activeTabId !== undefined && message.tabId !== activeTabId) return false;
+  scheduleConnection();
+  return false;
+});
+
+scheduleConnection();
+
+function scheduleConnection(): void {
+  if (connectionInFlight) {
+    reconnectRequested = true;
+    return;
+  }
+  connectionInFlight = connectToActiveTab().finally(() => {
+    connectionInFlight = undefined;
+    if (reconnectRequested) {
+      reconnectRequested = false;
+      scheduleConnection();
+    }
+  });
+}
 
 async function connectToActiveTab(): Promise<void> {
   disconnectFromPage();
@@ -125,10 +150,16 @@ async function ensureContentScript(tabId: number): Promise<void> {
       target: { tabId },
       files: ["content/content-script.js"],
     });
+  } catch (error) {
+    throw new BenyiError(injectionErrorCode(error));
+  }
+
+  try {
     const response = (await chrome.tabs.sendMessage(tabId, ping)) as PingResponse | undefined;
     if (response?.type !== "BENYI_PONG") throw new BenyiError("CONTENT_SCRIPT_UNAVAILABLE");
-  } catch {
-    throw new BenyiError("PAGE_UNSUPPORTED");
+  } catch (error) {
+    if (error instanceof BenyiError) throw error;
+    throw new BenyiError("CONTENT_SCRIPT_UNAVAILABLE");
   }
 }
 
@@ -633,6 +664,8 @@ function errorCodeMessage(code: string): string {
       return "没有找到当前标签页。";
     case "PAGE_UNSUPPORTED":
       return "当前页面受浏览器保护，无法注入翻译功能。请在普通网页中使用本译。";
+    case "SITE_ACCESS_REQUIRED":
+      return "请点击 Chrome 工具栏中的本译图标，授权当前网页后重试。";
     case "CONTENT_SCRIPT_UNAVAILABLE":
       return "无法连接当前页面，请刷新后重试。";
     case "API_UNSUPPORTED":

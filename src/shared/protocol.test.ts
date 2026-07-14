@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  isActionReadyMessage,
   isPageToPanelMessage,
   isPanelToPageMessage,
   PROTOCOL_VERSION,
 } from "./protocol";
 
 describe("protocol validation", () => {
+  it("accepts an action-ready notification with a valid tab id", () => {
+    expect(isActionReadyMessage({ version: PROTOCOL_VERSION, type: "ACTION_READY", tabId: 7 })).toBe(true);
+    expect(isActionReadyMessage({ version: PROTOCOL_VERSION, type: "ACTION_READY", tabId: -1 })).toBe(false);
+  });
+
   it("accepts a valid panel hello", () => {
     expect(
       isPanelToPageMessage({ version: PROTOCOL_VERSION, type: "PANEL_HELLO", tabId: 7 }),
