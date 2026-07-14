@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("extension manifest", () => {
-  it("registers a cross-platform shortcut for the extension action", () => {
+  it("keeps release metadata and action configuration valid", () => {
+    const packageJson = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { version: string };
     const manifest = JSON.parse(
       readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
     ) as {
@@ -11,6 +14,8 @@ describe("extension manifest", () => {
       };
       commands?: Record<string, { suggested_key?: Record<string, string> }>;
       icons?: Record<string, string>;
+      permissions?: string[];
+      version?: string;
     };
 
     expect(manifest.commands?._execute_action?.suggested_key).toEqual({
@@ -28,5 +33,7 @@ describe("extension manifest", () => {
       "16": "assets/icons/benyi-logo-16.png",
       "32": "assets/icons/benyi-logo-32.png",
     });
+    expect(manifest.permissions).toEqual(["activeTab", "scripting", "sidePanel"]);
+    expect(manifest.version).toBe(packageJson.version);
   });
 });

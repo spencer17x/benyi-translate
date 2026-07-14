@@ -10,7 +10,7 @@
     "48": "assets/icons/benyi-logo-48.png",
     "128": "assets/icons/benyi-logo-128.png"
   },
-  "permissions": ["activeTab", "scripting", "storage", "sidePanel"],
+  "permissions": ["activeTab", "scripting", "sidePanel"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"

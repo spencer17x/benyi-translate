@@ -4,7 +4,9 @@
 
 本译是一款面向 Chrome 桌面端的隐私优先沉浸式翻译扩展。它使用浏览器内置的本地语言能力，在设备上完成语言识别和翻译，将译文以双语形式自然地嵌入网页。
 
-项目当前处于需求设计阶段，仓库首先用于明确产品范围、验收标准和技术边界。
+[下载最新版本](https://github.com/spencer17x/benyi-translate/releases/latest)
+
+项目当前处于 MVP 验证阶段，通过 GitHub Release 提供可下载测试版本。
 
 ## 产品原则
 
@@ -38,7 +40,9 @@
 - [产品需求文档](docs/PRODUCT_REQUIREMENTS.md)
 - [技术设计](docs/TECHNICAL_DESIGN.md)
 - [开发路线图](docs/ROADMAP.md)
+- [隐私政策](PRIVACY.md)
 - [隐私与安全](SECURITY.md)
+- [版本更新记录](CHANGELOG.md)
 - [贡献指南](CONTRIBUTING.md)
 
 ## 计划中的目录结构
@@ -62,9 +66,18 @@ benyi-translate/
 - [x] 首版功能需求与验收框架
 - [x] 初步技术架构
 - [x] Manifest V3 工程骨架
+- [x] GitHub Release 自动打包与版本记录
 - [ ] 整页双语翻译 MVP
 - [ ] 公开测试：划词翻译、持久缓存与站点规则
-- [ ] Chrome Web Store 发布准备
+
+## 下载与安装
+
+1. 打开 [Releases](https://github.com/spencer17x/benyi-translate/releases/latest)，下载 `benyi-translate-v*.zip`。
+2. 解压 ZIP。
+3. 在 Chrome 中打开 `chrome://extensions` 并启用“开发者模式”。
+4. 点击“加载已解压的扩展程序”，选择解压后的目录。
+
+由于本译不通过 Chrome Web Store 分发，Chrome 不允许普通用户直接安装 ZIP 或 CRX；首次安装必须完成以上开发者模式步骤。更新时下载新版 ZIP，并在扩展管理页重新加载对应目录。
 
 ## 本地开发
 
@@ -77,6 +90,14 @@ pnpm run check
 
 `pnpm run check` 会依次执行 TypeScript 类型检查、单元测试和扩展构建，构建产物位于 `dist/`。
 
+生成与 GitHub Release 相同的 ZIP 和 SHA-256 文件：
+
+```bash
+pnpm run package
+```
+
+产物位于 `release/`，ZIP 中不包含源码映射。
+
 在 Chrome 中打开 `chrome://extensions`，启用开发者模式，选择“加载已解压的扩展程序”并指向本仓库的 `dist/`。随后可以启动固定英文夹具：
 
 ```bash
@@ -88,6 +109,16 @@ pnpm run fixture
 也可以使用 `Ctrl+Shift+Y`（macOS 为 `Command+Shift+Y`）快速打开本译并准备当前页面。快捷键发生冲突或需要自定义时，可在 `chrome://extensions/shortcuts` 中修改。
 
 当前实现已打通按需注入、页面文本发现、X 帖子正文识别、视口优先队列、语言检测、英译中、安全渲染、内存缓存、显示模式、暂停、取消和撤销。复杂 SPA 导航、无限滚动持续翻译、持久化缓存、站点规则和即时翻译仍在后续里程碑中。
+
+## 自动版本与发布
+
+项目使用 Release Please 根据 Conventional Commits 维护 Release PR：
+
+- `fix:` 生成补丁版本，例如 `0.1.0 → 0.1.1`。
+- `feat:` 生成次版本，例如 `0.1.0 → 0.2.0`。
+- `feat!:`、`fix!:` 或 `BREAKING CHANGE:` 生成主版本。
+
+Release PR 会同步更新 `package.json`、扩展 Manifest 和 `CHANGELOG.md`。合并 Release PR 后，CI 会完整检查项目、生成 ZIP 和 SHA-256，上传到草稿 GitHub Release；只有全部步骤成功后才会正式发布。
 
 ## 贡献
 

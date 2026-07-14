@@ -45,13 +45,15 @@ pnpm run check
 4. 添加或更新与变更对应的测试。
 5. 在 PR 中说明变更内容、原因、用户影响和验证方式。
 
-提交信息使用简洁的祈使句，例如：
+提交信息使用 Conventional Commits。版本号和 `CHANGELOG.md` 会据此自动生成：
 
 ```text
-Add viewport-priority translation queue
-Fix stale results after page navigation
-Document optional host permissions
+feat: add viewport-priority translation queue
+fix: ignore stale results after page navigation
+docs: explain optional host permissions
 ```
+
+`fix:` 对应补丁版本，`feat:` 对应次版本，带 `!` 或 `BREAKING CHANGE:` 的提交对应主版本。纯文档、测试和构建改动会进入 Release PR，但默认不单独触发版本升级。
 
 ## 需求变更
 
