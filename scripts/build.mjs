@@ -6,10 +6,23 @@ import { build } from "esbuild";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const src = resolve(root, "src");
 const dist = resolve(root, "dist");
+const tablerIcons = resolve(root, "node_modules/@tabler/icons/icons/outline");
+const uiIconNames = [
+  "alert-circle",
+  "arrow-back-up",
+  "circle-check",
+  "file-text",
+  "keyboard",
+  "language",
+  "player-pause",
+  "shield-lock",
+  "square-x",
+];
 
 await rm(dist, { recursive: true, force: true });
 await Promise.all([
   mkdir(resolve(dist, "assets/icons"), { recursive: true }),
+  mkdir(resolve(dist, "assets/ui"), { recursive: true }),
   mkdir(resolve(dist, "sidepanel"), { recursive: true }),
 ]);
 
@@ -19,6 +32,13 @@ await Promise.all([
       resolve(src, `assets/icons/benyi-logo-${size}.png`),
       resolve(dist, `assets/icons/benyi-logo-${size}.png`),
     ),
+  ),
+  ...uiIconNames.map((name) =>
+    cp(resolve(tablerIcons, `${name}.svg`), resolve(dist, `assets/ui/${name}.svg`)),
+  ),
+  cp(
+    resolve(root, "node_modules/@tabler/icons/LICENSE"),
+    resolve(dist, "assets/ui/tabler-LICENSE.txt"),
   ),
   cp(resolve(src, "manifest.json"), resolve(dist, "manifest.json")),
   cp(resolve(src, "sidepanel/index.html"), resolve(dist, "sidepanel/index.html")),

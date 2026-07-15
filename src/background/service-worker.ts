@@ -3,8 +3,9 @@ import {
   type ActionReadyMessage,
 } from "../shared/protocol";
 import {
-  PENDING_TRANSLATION_TAB_KEY,
-  TRANSLATE_PAGE_COMMAND,
+  isPanelCommand,
+  PENDING_PANEL_COMMAND_KEY,
+  type PendingPanelCommand,
 } from "../shared/commands";
 
 async function configureSidePanel(): Promise<void> {
@@ -16,10 +17,11 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 chrome.commands.onCommand.addListener((command, tab) => {
-  if (command !== TRANSLATE_PAGE_COMMAND || tab?.id === undefined) return;
+  if (!isPanelCommand(command) || tab?.id === undefined) return;
 
+  const request: PendingPanelCommand = { tabId: tab.id, command };
   const requestPromise = chrome.storage.session.set({
-    [PENDING_TRANSLATION_TAB_KEY]: tab.id,
+    [PENDING_PANEL_COMMAND_KEY]: request,
   });
   openAndPrepare(tab, requestPromise);
 });
@@ -47,7 +49,7 @@ async function finishAction(
     requestPromise,
   ]);
   if (open.status === "rejected") {
-    await chrome.storage.session.remove(PENDING_TRANSLATION_TAB_KEY).catch(() => undefined);
+    await chrome.storage.session.remove(PENDING_PANEL_COMMAND_KEY).catch(() => undefined);
     console.warn("Benyi could not open the side panel");
     return;
   }

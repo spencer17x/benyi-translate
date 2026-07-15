@@ -16,11 +16,13 @@ import {
 } from "../shared/protocol";
 import { createId } from "../shared/id";
 import {
-  PENDING_TRANSLATION_TAB_KEY,
-  TRANSLATE_PAGE_COMMAND,
+  isPendingPanelCommand,
+  PENDING_PANEL_COMMAND_KEY,
+  type PanelCommand,
 } from "../shared/commands";
 import { translateText } from "../translation/translate";
 import { injectionErrorCode } from "./access";
+import { panelCommandAction } from "./command";
 
 const SOURCE_LANGUAGE = "en";
 const TARGET_LANGUAGE = "zh";
@@ -28,22 +30,22 @@ const DETECTION_CONFIDENCE = 0.6;
 
 const statusElement = requiredElement<HTMLParagraphElement>("status");
 const statusDot = requiredElement<HTMLSpanElement>("status-dot");
+const translationCard = requiredElement<HTMLElement>("translation-card");
 const progressWrap = requiredElement<HTMLDivElement>("progress-wrap");
 const progressElement = requiredElement<HTMLProgressElement>("progress");
 const progressLabel = requiredElement<HTMLSpanElement>("progress-label");
+const progressSummary = requiredElement<HTMLParagraphElement>("progress-summary");
 const startButton = requiredElement<HTMLButtonElement>("start");
+const startLabel = requiredElement<HTMLSpanElement>("start-label");
 const pauseButton = requiredElement<HTMLButtonElement>("pause");
 const cancelButton = requiredElement<HTMLButtonElement>("cancel");
 const undoButton = requiredElement<HTMLButtonElement>("undo");
 const totalMetric = requiredElement<HTMLElement>("metric-total");
 const completedMetric = requiredElement<HTMLElement>("metric-completed");
 const failedMetric = requiredElement<HTMLElement>("metric-failed");
-const translateShortcut = requiredElement<HTMLParagraphElement>("translate-shortcut");
-const translateShortcutKey = requiredElement<HTMLElement>("translate-shortcut-key");
-const openShortcut = requiredElement<HTMLParagraphElement>("open-shortcut");
-const openShortcutKey = requiredElement<HTMLElement>("open-shortcut-key");
 const configureShortcutsButton = requiredElement<HTMLButtonElement>("configure-shortcuts");
 const modeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-mode]"));
+const shortcutRows = Array.from(document.querySelectorAll<HTMLElement>("[data-command]"));
 
 let activeTabId: number | undefined;
 let activePort: chrome.runtime.Port | undefined;
@@ -67,7 +69,7 @@ let preparationController: AbortController | undefined;
 let translationController: AbortController | undefined;
 let connectionInFlight: Promise<void> | undefined;
 let reconnectRequested = false;
-let translationRequestInFlight = false;
+let panelCommandInFlight = false;
 
 startButton.addEventListener("click", () => {
   void startOrResumeTranslation();
@@ -84,10 +86,7 @@ for (const button of modeButtons) {
   button.addEventListener("click", () => {
     const mode = button.dataset.mode;
     if (mode !== "original" && mode !== "bilingual" && mode !== "translation") return;
-    displayMode = mode;
-    updateModeButtons();
-    const identity = currentIdentity();
-    if (identity) postToPage({ version: PROTOCOL_VERSION, type: "PAGE_MODE_SET", ...identity, mode });
+    setDisplayMode(mode);
   });
 }
 
@@ -98,7 +97,11 @@ chrome.tabs.onActivated.addListener(() => {
 chrome.runtime.onMessage.addListener((message: unknown) => {
   if (!isActionReadyMessage(message)) return false;
   if (activeTabId !== undefined && message.tabId !== activeTabId) return false;
-  scheduleConnection();
+  if (activeTabId === message.tabId && pageId !== undefined && activePort) {
+    void consumePanelCommand();
+  } else {
+    scheduleConnection();
+  }
   return false;
 });
 
@@ -108,23 +111,16 @@ void renderShortcutHints();
 async function renderShortcutHints(): Promise<void> {
   try {
     const commands = await chrome.commands.getAll();
-    renderShortcut(
-      translateShortcut,
-      translateShortcutKey,
-      commands.find((item) => item.name === TRANSLATE_PAGE_COMMAND)?.shortcut,
-    );
-    renderShortcut(
-      openShortcut,
-      openShortcutKey,
-      commands.find((item) => item.name === "_execute_action")?.shortcut,
-    );
+    const shortcuts = new Map(commands.map((command) => [command.name, command.shortcut]));
+    for (const row of shortcutRows) renderShortcut(row, shortcuts.get(row.dataset.command));
   } catch {
-    renderShortcut(translateShortcut, translateShortcutKey);
-    renderShortcut(openShortcut, openShortcutKey);
+    for (const row of shortcutRows) renderShortcut(row);
   }
 }
 
-function renderShortcut(row: HTMLElement, key: HTMLElement, shortcut?: string): void {
+function renderShortcut(row: HTMLElement, shortcut?: string): void {
+  const key = row.querySelector<HTMLElement>("kbd");
+  if (!key) return;
   const assignedShortcut = shortcut?.trim();
   key.textContent = assignedShortcut || "未分配";
   row.dataset.assigned = String(Boolean(assignedShortcut));
@@ -266,31 +262,66 @@ function handlePageState(message: Extract<PageToPanelMessage, { type: "PAGE_STAT
   renderProgress();
   if (!localPreparing) renderStatusFromTask();
   renderControls();
-  void consumeTranslationRequest();
+  void consumePanelCommand();
 }
 
-async function consumeTranslationRequest(): Promise<void> {
-  if (translationRequestInFlight || activeTabId === undefined || pageId === undefined) return;
-  translationRequestInFlight = true;
+async function consumePanelCommand(): Promise<void> {
+  if (panelCommandInFlight || activeTabId === undefined || pageId === undefined) return;
+  panelCommandInFlight = true;
   const requestedTabId = activeTabId;
 
   try {
-    const pending = await chrome.storage.session.get(PENDING_TRANSLATION_TAB_KEY);
-    if (pending[PENDING_TRANSLATION_TAB_KEY] !== requestedTabId) return;
-    await chrome.storage.session.remove(PENDING_TRANSLATION_TAB_KEY);
+    const pending = await chrome.storage.session.get(PENDING_PANEL_COMMAND_KEY);
+    const request = pending[PENDING_PANEL_COMMAND_KEY];
+    if (!isPendingPanelCommand(request) || request.tabId !== requestedTabId) return;
+    await chrome.storage.session.remove(PENDING_PANEL_COMMAND_KEY);
     if (activeTabId !== requestedTabId || pageId === undefined) return;
-    if (
-      localPreparing ||
-      taskStatus === "collecting" ||
-      taskStatus === "preparing" ||
-      taskStatus === "translating"
-    ) {
-      return;
-    }
-    await startOrResumeTranslation();
+    await executePanelCommand(request.command);
   } finally {
-    translationRequestInFlight = false;
+    panelCommandInFlight = false;
   }
+}
+
+async function executePanelCommand(command: PanelCommand): Promise<void> {
+  const action = panelCommandAction(command, {
+    taskStatus,
+    localPreparing,
+    hasTask: taskId !== undefined,
+    completed: progress.completed,
+  });
+
+  switch (action) {
+    case "start":
+      await startOrResumeTranslation();
+      break;
+    case "pause":
+      pauseTranslation();
+      break;
+    case "cancel":
+      cancelTranslation();
+      break;
+    case "undo":
+      undoTranslation();
+      break;
+    case "cycle-display":
+      cycleDisplayMode();
+      break;
+    case "none":
+      break;
+  }
+}
+
+function cycleDisplayMode(): void {
+  const modes: DisplayMode[] = ["original", "bilingual", "translation"];
+  const currentIndex = modes.indexOf(displayMode);
+  setDisplayMode(modes[(currentIndex + 1) % modes.length]!);
+}
+
+function setDisplayMode(mode: DisplayMode): void {
+  displayMode = mode;
+  updateModeButtons();
+  const identity = currentIdentity();
+  if (identity) postToPage({ version: PROTOCOL_VERSION, type: "PAGE_MODE_SET", ...identity, mode });
 }
 
 async function startOrResumeTranslation(): Promise<void> {
@@ -432,7 +463,7 @@ async function approveSourceLanguage(): Promise<void> {
   }
 
   sourceApproved = true;
-  setStatus("正在优先翻译当前视口内容…", "active");
+  setStatus("正在翻译当前页面…", "active");
   await processQueue();
 }
 
@@ -494,7 +525,7 @@ async function processQueue(): Promise<void> {
       const identity = currentIdentity();
       if (identity) postToPage({ version: PROTOCOL_VERSION, type: "TASK_COMPLETE", ...identity });
       taskStatus = "completed";
-      setStatus("当前页面翻译完成。", "active");
+      setStatus("当前页面翻译完成。", "success");
       destroyModels();
       renderControls();
     }
@@ -647,6 +678,10 @@ function renderProgress(): void {
   progressElement.max = Math.max(progress.total, 1);
   progressElement.value = Math.min(handled, progress.total);
   progressLabel.textContent = `${handled} / ${progress.total}`;
+  progressSummary.textContent =
+    progress.total > 0
+      ? `已处理 ${handled} 个段落，共 ${progress.total} 个`
+      : "正在准备页面正文…";
   totalMetric.textContent = String(progress.total);
   completedMetric.textContent = String(progress.completed);
   failedMetric.textContent = String(progress.failed);
@@ -655,8 +690,10 @@ function renderProgress(): void {
 function renderControls(): void {
   const connected = activePort !== undefined && pageId !== undefined;
   const busy = localPreparing || taskStatus === "collecting" || taskStatus === "preparing" || taskStatus === "translating";
+  translationCard.dataset.taskStatus = taskStatus;
+  translationCard.setAttribute("aria-busy", String(busy));
   startButton.disabled = !connected || busy;
-  startButton.textContent =
+  startLabel.textContent =
     taskStatus === "paused"
       ? "继续翻译"
       : taskStatus === "completed" || taskStatus === "cancelled" || taskStatus === "failed"
@@ -672,7 +709,7 @@ function renderControls(): void {
 function renderStatusFromTask(): void {
   switch (taskStatus) {
     case "idle":
-      setStatus("已连接。正文只会交给 Chrome 的本地翻译能力。", "neutral");
+      setStatus("正文仅由 Chrome 本地处理，准备好后即可开始。", "neutral");
       break;
     case "collecting":
       setStatus("正在发现当前页面中的可阅读正文…", "active");
@@ -681,16 +718,16 @@ function renderStatusFromTask(): void {
       setStatus("正在准备 Chrome 本地语言能力…", "active");
       break;
     case "translating":
-      setStatus("正在优先翻译当前视口内容…", "active");
+      setStatus("正在翻译当前页面…", "active");
       break;
     case "paused":
-      setStatus("翻译已暂停，点击继续可处理剩余正文。", "neutral");
+      setStatus("翻译已暂停，已完成的译文会保留。", "neutral");
       break;
     case "cancelled":
       setStatus("翻译已取消，已完成的译文仍保留。", "neutral");
       break;
     case "completed":
-      setStatus("当前页面翻译完成，可切换显示方式或重新翻译。", "active");
+      setStatus("当前页面翻译完成。", "success");
       break;
     case "failed":
       setStatus("翻译没有完成，请重试。", "error");
@@ -698,8 +735,9 @@ function renderStatusFromTask(): void {
   }
 }
 
-function setStatus(message: string, state: "neutral" | "active" | "error"): void {
+function setStatus(message: string, state: "neutral" | "active" | "success" | "error"): void {
   statusElement.textContent = message;
+  translationCard.dataset.tone = state;
   if (state === "neutral") delete statusDot.dataset.state;
   else statusDot.dataset.state = state;
 }

@@ -32,6 +32,26 @@ describe("extension manifest", () => {
       },
       description: "翻译当前页面",
     });
+    expect(manifest.commands?.["toggle-pause-translation"]).toEqual({
+      suggested_key: {
+        default: "Ctrl+Shift+P",
+        mac: "Command+Shift+P",
+      },
+      description: "暂停或继续翻译",
+    });
+    expect(manifest.commands?.["cancel-translation"]).toEqual({
+      suggested_key: {
+        default: "Ctrl+Shift+X",
+        mac: "Command+Shift+X",
+      },
+      description: "取消当前翻译",
+    });
+    expect(manifest.commands?.["undo-translation"]).toEqual({
+      description: "撤销当前页面的全部译文",
+    });
+    expect(manifest.commands?.["cycle-display-mode"]).toEqual({
+      description: "切换原文、双语和仅译文显示",
+    });
 
     expect(manifest.icons).toEqual({
       "16": "assets/icons/benyi-logo-16.png",

@@ -35,6 +35,26 @@
         "mac": "Command+Shift+U"
       },
       "description": "翻译当前页面"
+    },
+    "toggle-pause-translation": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P",
+        "mac": "Command+Shift+P"
+      },
+      "description": "暂停或继续翻译"
+    },
+    "cancel-translation": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X",
+        "mac": "Command+Shift+X"
+      },
+      "description": "取消当前翻译"
+    },
+    "undo-translation": {
+      "description": "撤销当前页面的全部译文"
+    },
+    "cycle-display-mode": {
+      "description": "切换原文、双语和仅译文显示"
     }
   },
   "side_panel": {

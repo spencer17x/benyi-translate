@@ -9,75 +9,111 @@
   <body>
     <main class="panel">
       <header class="brand">
-        <div class="brand-copy">
-          <p class="eyebrow">本地网页翻译</p>
-          <h1>本译 <span class="wordmark-latin">Benyi</span></h1>
-        </div>
-        <span class="privacy-badge">正文不上传</span>
+        <img class="brand-logo" src="../assets/icons/benyi-logo-48.png" alt="" width="40" height="40" />
+        <h1>本译 <span class="wordmark-latin">Benyi</span></h1>
       </header>
+      <p class="privacy-line">
+        <img class="ui-icon" src="../assets/ui/shield-lock.svg" alt="" width="18" height="18" />
+        <span>隐私保护</span><strong>正文不上传</strong>
+      </p>
 
-      <section class="card hero-card" aria-labelledby="translation-heading">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">当前页面</p>
-            <h2 id="translation-heading">英语 <span class="language-arrow">→</span> 简体中文</h2>
+      <section id="translation-card" class="card translation-card" aria-labelledby="translation-heading">
+        <div class="translation-main">
+          <div class="section-heading translation-heading">
+            <div>
+              <p class="eyebrow">当前页面翻译</p>
+              <h2 id="translation-heading">英语 <span class="language-arrow">→</span> 简体中文</h2>
+            </div>
           </div>
-          <span id="status-dot" class="status-dot" aria-hidden="true"></span>
-        </div>
 
-        <p id="status" class="status" role="status" aria-live="polite">正在连接当前页面…</p>
-
-        <div id="progress-wrap" class="progress-wrap" hidden>
-          <progress id="progress" max="1" value="0"></progress>
-          <span id="progress-label">0 / 0</span>
-        </div>
-
-        <div class="primary-actions">
-          <button id="start" class="button button-primary" type="button" disabled>开始翻译</button>
-          <button id="pause" class="button" type="button" hidden>暂停</button>
-          <button id="cancel" class="button button-danger" type="button" hidden>取消</button>
-        </div>
-
-        <div class="shortcut-settings" aria-label="本译快捷键">
-          <div class="shortcut-list">
-            <p id="translate-shortcut" class="shortcut-item">
-              <span>翻译当前页</span>
-              <kbd id="translate-shortcut-key">读取中…</kbd>
-            </p>
-            <p id="open-shortcut" class="shortcut-item">
-              <span>打开本译</span>
-              <kbd id="open-shortcut-key">读取中…</kbd>
-            </p>
+          <div class="status-row">
+            <span id="status-dot" class="status-dot" aria-hidden="true"></span>
+            <p id="status" class="status" role="status" aria-live="polite">正在连接当前页面…</p>
           </div>
-          <button id="configure-shortcuts" class="text-button shortcut-configure" type="button">
-            修改快捷键
+
+          <div id="progress-wrap" class="progress-wrap" hidden>
+            <div class="progress-line">
+              <progress id="progress" max="1" value="0"></progress>
+              <span id="progress-label">0 / 0</span>
+            </div>
+            <p id="progress-summary" class="progress-summary">尚未处理页面正文</p>
+          </div>
+
+          <div class="primary-actions">
+            <button id="start" class="button button-primary" type="button" disabled>
+              <img class="ui-icon" src="../assets/ui/language.svg" alt="" width="18" height="18" />
+              <span id="start-label">开始翻译</span>
+            </button>
+            <button id="pause" class="button button-primary" type="button" hidden>
+              <img class="ui-icon" src="../assets/ui/player-pause.svg" alt="" width="18" height="18" />
+              <span>暂停翻译</span>
+            </button>
+            <button id="cancel" class="button button-secondary" type="button" hidden>
+              <img class="ui-icon" src="../assets/ui/square-x.svg" alt="" width="17" height="17" />
+              <span>取消</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="translation-section display-section" aria-labelledby="display-heading">
+          <div class="section-copy">
+            <h2 id="display-heading">显示方式</h2>
+            <p>随时切换，不会修改网页原文</p>
+          </div>
+          <div class="segmented" role="group" aria-label="译文显示方式">
+            <button type="button" data-mode="original">原文</button>
+            <button type="button" data-mode="bilingual" aria-pressed="true">双语</button>
+            <button type="button" data-mode="translation">仅译文</button>
+          </div>
+        </div>
+
+        <div class="translation-section details" aria-labelledby="details-heading">
+          <h2 id="details-heading" class="visually-hidden">本页状态</h2>
+          <dl>
+            <div>
+              <dt><img class="ui-icon" src="../assets/ui/file-text.svg" alt="" width="15" height="15" />段落</dt>
+              <dd id="metric-total">0</dd>
+            </div>
+            <div>
+              <dt><img class="ui-icon" src="../assets/ui/circle-check.svg" alt="" width="15" height="15" />已完成</dt>
+              <dd id="metric-completed">0</dd>
+            </div>
+            <div>
+              <dt><img class="ui-icon" src="../assets/ui/alert-circle.svg" alt="" width="15" height="15" />失败</dt>
+              <dd id="metric-failed">0</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="translation-section undo-section">
+          <button id="undo" class="undo-button" type="button" disabled>
+            <img class="ui-icon" src="../assets/ui/arrow-back-up.svg" alt="" width="20" height="20" />
+            <span><strong>撤销本页翻译</strong><small>恢复到翻译前的原始状态</small></span>
           </button>
         </div>
       </section>
 
-      <section class="card compact" aria-labelledby="display-heading">
-        <div class="section-copy">
-          <h2 id="display-heading">显示方式</h2>
-          <p>随时切换，不会修改网页原文</p>
+      <details class="card shortcut-card" open>
+        <summary>
+          <img class="ui-icon" src="../assets/ui/keyboard.svg" alt="" width="18" height="18" />
+          <span>快捷键</span>
+          <small>可自定义</small>
+        </summary>
+        <div class="shortcut-content">
+          <div class="shortcut-list" aria-label="本译快捷键">
+            <p class="shortcut-item" data-command="translate-page"><span>翻译当前页</span><kbd>读取中…</kbd></p>
+            <p class="shortcut-item" data-command="toggle-pause-translation"><span>暂停 / 继续</span><kbd>读取中…</kbd></p>
+            <p class="shortcut-item" data-command="cancel-translation"><span>取消翻译</span><kbd>读取中…</kbd></p>
+            <p class="shortcut-item" data-command="undo-translation"><span>撤销全部译文</span><kbd>读取中…</kbd></p>
+            <p class="shortcut-item" data-command="cycle-display-mode"><span>切换显示方式</span><kbd>读取中…</kbd></p>
+            <p class="shortcut-item" data-command="_execute_action"><span>打开本译</span><kbd>读取中…</kbd></p>
+          </div>
+          <button id="configure-shortcuts" class="shortcut-configure" type="button">
+            <img class="ui-icon" src="../assets/ui/keyboard.svg" alt="" width="17" height="17" />
+            <span>管理快捷键</span>
+          </button>
         </div>
-        <div class="segmented" role="group" aria-label="译文显示方式">
-          <button type="button" data-mode="original">原文</button>
-          <button type="button" data-mode="bilingual" aria-pressed="true">双语</button>
-          <button type="button" data-mode="translation">仅译文</button>
-        </div>
-      </section>
-
-      <section class="card compact details" aria-labelledby="details-heading">
-        <div class="section-heading">
-          <h2 id="details-heading">本页状态</h2>
-          <button id="undo" class="text-button" type="button" disabled>撤销全部译文</button>
-        </div>
-        <dl>
-          <div><dt>段落</dt><dd id="metric-total">0</dd></div>
-          <div><dt>已完成</dt><dd id="metric-completed">0</dd></div>
-          <div><dt>失败</dt><dd id="metric-failed">0</dd></div>
-        </dl>
-      </section>
+      </details>
 
       <footer class="panel-footer">
         <p>首次使用某个语言对时，Chrome 可能需要下载本地语言资源。</p>
