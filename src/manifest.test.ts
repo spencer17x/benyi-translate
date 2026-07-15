@@ -12,7 +12,10 @@ describe("extension manifest", () => {
       action?: {
         default_icon?: Record<string, string>;
       };
-      commands?: Record<string, { suggested_key?: Record<string, string> }>;
+      commands?: Record<string, {
+        description?: string;
+        suggested_key?: Record<string, string>;
+      }>;
       icons?: Record<string, string>;
       permissions?: string[];
       version?: string;
@@ -21,6 +24,13 @@ describe("extension manifest", () => {
     expect(manifest.commands?._execute_action?.suggested_key).toEqual({
       default: "Ctrl+Shift+Y",
       mac: "Command+Shift+Y",
+    });
+    expect(manifest.commands?.["translate-page"]).toEqual({
+      suggested_key: {
+        default: "Ctrl+Shift+U",
+        mac: "Command+Shift+U",
+      },
+      description: "翻译当前页面",
     });
 
     expect(manifest.icons).toEqual({
@@ -33,7 +43,7 @@ describe("extension manifest", () => {
       "16": "assets/icons/benyi-logo-16.png",
       "32": "assets/icons/benyi-logo-32.png",
     });
-    expect(manifest.permissions).toEqual(["activeTab", "scripting", "sidePanel"]);
+    expect(manifest.permissions).toEqual(["activeTab", "scripting", "sidePanel", "storage"]);
     expect(manifest.version).toBe(packageJson.version);
   });
 });

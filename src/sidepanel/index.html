@@ -38,10 +38,21 @@
           <button id="cancel" class="button button-danger" type="button" hidden>取消</button>
         </div>
 
-        <p id="shortcut-hint" class="shortcut-hint" aria-label="打开本译快捷键">
-          <span id="shortcut-copy">快速打开本译</span>
-          <kbd id="shortcut-key">读取中…</kbd>
-        </p>
+        <div class="shortcut-settings" aria-label="本译快捷键">
+          <div class="shortcut-list">
+            <p id="translate-shortcut" class="shortcut-item">
+              <span>翻译当前页</span>
+              <kbd id="translate-shortcut-key">读取中…</kbd>
+            </p>
+            <p id="open-shortcut" class="shortcut-item">
+              <span>打开本译</span>
+              <kbd id="open-shortcut-key">读取中…</kbd>
+            </p>
+          </div>
+          <button id="configure-shortcuts" class="text-button shortcut-configure" type="button">
+            修改快捷键
+          </button>
+        </div>
       </section>
 
       <section class="card compact" aria-labelledby="display-heading">
@@ -70,7 +81,6 @@
 
       <footer class="panel-footer">
         <p>首次使用某个语言对时，Chrome 可能需要下载本地语言资源。</p>
-        <p>快捷键可在 Chrome 扩展快捷键页面中修改。</p>
       </footer>
     </main>
 

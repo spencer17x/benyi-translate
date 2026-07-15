@@ -10,7 +10,7 @@
     "48": "assets/icons/benyi-logo-48.png",
     "128": "assets/icons/benyi-logo-128.png"
   },
-  "permissions": ["activeTab", "scripting", "sidePanel"],
+  "permissions": ["activeTab", "scripting", "sidePanel", "storage"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
@@ -28,6 +28,13 @@
         "default": "Ctrl+Shift+Y",
         "mac": "Command+Shift+Y"
       }
+    },
+    "translate-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+U",
+        "mac": "Command+Shift+U"
+      },
+      "description": "翻译当前页面"
     }
   },
   "side_panel": {

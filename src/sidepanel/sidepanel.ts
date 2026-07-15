@@ -15,6 +15,10 @@ import {
   type TaskStatus,
 } from "../shared/protocol";
 import { createId } from "../shared/id";
+import {
+  PENDING_TRANSLATION_TAB_KEY,
+  TRANSLATE_PAGE_COMMAND,
+} from "../shared/commands";
 import { translateText } from "../translation/translate";
 import { injectionErrorCode } from "./access";
 
@@ -34,9 +38,11 @@ const undoButton = requiredElement<HTMLButtonElement>("undo");
 const totalMetric = requiredElement<HTMLElement>("metric-total");
 const completedMetric = requiredElement<HTMLElement>("metric-completed");
 const failedMetric = requiredElement<HTMLElement>("metric-failed");
-const shortcutHint = requiredElement<HTMLParagraphElement>("shortcut-hint");
-const shortcutCopy = requiredElement<HTMLSpanElement>("shortcut-copy");
-const shortcutKey = requiredElement<HTMLElement>("shortcut-key");
+const translateShortcut = requiredElement<HTMLParagraphElement>("translate-shortcut");
+const translateShortcutKey = requiredElement<HTMLElement>("translate-shortcut-key");
+const openShortcut = requiredElement<HTMLParagraphElement>("open-shortcut");
+const openShortcutKey = requiredElement<HTMLElement>("open-shortcut-key");
+const configureShortcutsButton = requiredElement<HTMLButtonElement>("configure-shortcuts");
 const modeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-mode]"));
 
 let activeTabId: number | undefined;
@@ -61,6 +67,7 @@ let preparationController: AbortController | undefined;
 let translationController: AbortController | undefined;
 let connectionInFlight: Promise<void> | undefined;
 let reconnectRequested = false;
+let translationRequestInFlight = false;
 
 startButton.addEventListener("click", () => {
   void startOrResumeTranslation();
@@ -69,6 +76,9 @@ startButton.addEventListener("click", () => {
 pauseButton.addEventListener("click", pauseTranslation);
 cancelButton.addEventListener("click", cancelTranslation);
 undoButton.addEventListener("click", undoTranslation);
+configureShortcutsButton.addEventListener("click", () => {
+  void openShortcutSettings();
+});
 
 for (const button of modeButtons) {
   button.addEventListener("click", () => {
@@ -93,24 +103,41 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
 });
 
 scheduleConnection();
-void renderShortcutHint();
+void renderShortcutHints();
 
-async function renderShortcutHint(): Promise<void> {
+async function renderShortcutHints(): Promise<void> {
   try {
-    const command = (await chrome.commands.getAll()).find((item) => item.name === "_execute_action");
-    const shortcut = command?.shortcut?.trim();
-    if (shortcut) {
-      shortcutCopy.textContent = "快速打开本译";
-      shortcutKey.textContent = shortcut;
-      shortcutHint.dataset.assigned = "true";
-      return;
-    }
+    const commands = await chrome.commands.getAll();
+    renderShortcut(
+      translateShortcut,
+      translateShortcutKey,
+      commands.find((item) => item.name === TRANSLATE_PAGE_COMMAND)?.shortcut,
+    );
+    renderShortcut(
+      openShortcut,
+      openShortcutKey,
+      commands.find((item) => item.name === "_execute_action")?.shortcut,
+    );
   } catch {
-    // Keep the unassigned hint when Chrome cannot expose command state.
+    renderShortcut(translateShortcut, translateShortcutKey);
+    renderShortcut(openShortcut, openShortcutKey);
   }
-  shortcutCopy.textContent = "快捷键未分配";
-  shortcutKey.textContent = "未分配";
-  shortcutHint.dataset.assigned = "false";
+}
+
+function renderShortcut(row: HTMLElement, key: HTMLElement, shortcut?: string): void {
+  const assignedShortcut = shortcut?.trim();
+  key.textContent = assignedShortcut || "未分配";
+  row.dataset.assigned = String(Boolean(assignedShortcut));
+}
+
+async function openShortcutSettings(): Promise<void> {
+  const shortcutSettingsUrl = "chrome://extensions/shortcuts";
+  try {
+    const tab = await chrome.tabs.create({ url: shortcutSettingsUrl });
+    if (tab.id !== undefined) await chrome.tabs.update(tab.id, { url: shortcutSettingsUrl });
+  } catch {
+    setStatus(`请在地址栏打开 ${shortcutSettingsUrl} 修改快捷键。`, "neutral");
+  }
 }
 
 function scheduleConnection(): void {
@@ -239,6 +266,31 @@ function handlePageState(message: Extract<PageToPanelMessage, { type: "PAGE_STAT
   renderProgress();
   if (!localPreparing) renderStatusFromTask();
   renderControls();
+  void consumeTranslationRequest();
+}
+
+async function consumeTranslationRequest(): Promise<void> {
+  if (translationRequestInFlight || activeTabId === undefined || pageId === undefined) return;
+  translationRequestInFlight = true;
+  const requestedTabId = activeTabId;
+
+  try {
+    const pending = await chrome.storage.session.get(PENDING_TRANSLATION_TAB_KEY);
+    if (pending[PENDING_TRANSLATION_TAB_KEY] !== requestedTabId) return;
+    await chrome.storage.session.remove(PENDING_TRANSLATION_TAB_KEY);
+    if (activeTabId !== requestedTabId || pageId === undefined) return;
+    if (
+      localPreparing ||
+      taskStatus === "collecting" ||
+      taskStatus === "preparing" ||
+      taskStatus === "translating"
+    ) {
+      return;
+    }
+    await startOrResumeTranslation();
+  } finally {
+    translationRequestInFlight = false;
+  }
 }
 
 async function startOrResumeTranslation(): Promise<void> {
