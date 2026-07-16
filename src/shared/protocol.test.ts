@@ -3,6 +3,8 @@ import {
   isActionReadyMessage,
   isPageToPanelMessage,
   isPanelToPageMessage,
+  isSelectionTranslateMessage,
+  MAX_SELECTION_CHARACTERS,
   PROTOCOL_VERSION,
 } from "./protocol";
 
@@ -10,6 +12,30 @@ describe("protocol validation", () => {
   it("accepts an action-ready notification with a valid tab id", () => {
     expect(isActionReadyMessage({ version: PROTOCOL_VERSION, type: "ACTION_READY", tabId: 7 })).toBe(true);
     expect(isActionReadyMessage({ version: PROTOCOL_VERSION, type: "ACTION_READY", tabId: -1 })).toBe(false);
+  });
+
+  it("accepts selection translation requests and rejects malformed text", () => {
+    expect(
+      isSelectionTranslateMessage({
+        version: PROTOCOL_VERSION,
+        type: "SELECTION_TRANSLATE",
+        sourceText: "Selected text",
+      }),
+    ).toBe(true);
+    expect(
+      isSelectionTranslateMessage({
+        version: PROTOCOL_VERSION,
+        type: "SELECTION_TRANSLATE",
+        sourceText: 42,
+      }),
+    ).toBe(false);
+    expect(
+      isSelectionTranslateMessage({
+        version: PROTOCOL_VERSION,
+        type: "SELECTION_TRANSLATE",
+        sourceText: "x".repeat(MAX_SELECTION_CHARACTERS + 2),
+      }),
+    ).toBe(false);
   });
 
   it("accepts a valid panel hello", () => {

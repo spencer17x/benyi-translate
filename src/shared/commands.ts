@@ -6,6 +6,8 @@ export const PANEL_COMMANDS = {
   cycleDisplayMode: "cycle-display-mode",
 } as const;
 
+export const SELECTION_COMMAND = "translate-selection" as const;
+
 export type PanelCommand = (typeof PANEL_COMMANDS)[keyof typeof PANEL_COMMANDS];
 
 export const PENDING_PANEL_COMMAND_KEY = "pendingPanelCommand";
@@ -17,6 +19,10 @@ export type PendingPanelCommand = {
 
 export function isPanelCommand(value: unknown): value is PanelCommand {
   return Object.values(PANEL_COMMANDS).some((command) => command === value);
+}
+
+export function isSelectionCommand(value: unknown): value is typeof SELECTION_COMMAND {
+  return value === SELECTION_COMMAND;
 }
 
 export function isPendingPanelCommand(value: unknown): value is PendingPanelCommand {

@@ -2,6 +2,7 @@ export const PROTOCOL_VERSION = 1 as const;
 export const TASK_PORT_NAME = "benyi-task-v1";
 export const MAX_BATCH_SEGMENTS = 50;
 export const MAX_BATCH_CHARACTERS = 32_000;
+export const MAX_SELECTION_CHARACTERS = 8_000;
 
 export type DisplayMode = "original" | "bilingual" | "translation";
 
@@ -100,6 +101,11 @@ export type PageToPanelMessage =
 export type PingMessage = { version: 1; type: "BENYI_PING" };
 export type PingResponse = { version: 1; type: "BENYI_PONG"; pageId: string };
 export type ActionReadyMessage = { version: 1; type: "ACTION_READY"; tabId: number };
+export type SelectionTranslateMessage = {
+  version: 1;
+  type: "SELECTION_TRANSLATE";
+  sourceText?: string;
+};
 
 export function isPanelToPageMessage(value: unknown): value is PanelToPageMessage {
   if (!isProtocolRecord(value)) return false;
@@ -189,6 +195,16 @@ export function isPingMessage(value: unknown): value is PingMessage {
 
 export function isActionReadyMessage(value: unknown): value is ActionReadyMessage {
   return isProtocolRecord(value) && value.type === "ACTION_READY" && isSafeTabId(value.tabId);
+}
+
+export function isSelectionTranslateMessage(value: unknown): value is SelectionTranslateMessage {
+  return (
+    isProtocolRecord(value) &&
+    value.type === "SELECTION_TRANSLATE" &&
+    (value.sourceText === undefined ||
+      (typeof value.sourceText === "string" &&
+        value.sourceText.length <= MAX_SELECTION_CHARACTERS + 1))
+  );
 }
 
 export function isDisplayMode(value: unknown): value is DisplayMode {

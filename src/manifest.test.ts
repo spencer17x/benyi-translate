@@ -52,6 +52,9 @@ describe("extension manifest", () => {
     expect(manifest.commands?.["cycle-display-mode"]).toEqual({
       description: "切换原文、双语和仅译文显示",
     });
+    expect(manifest.commands?.["translate-selection"]).toEqual({
+      description: "翻译选中文本",
+    });
 
     expect(manifest.icons).toEqual({
       "16": "assets/icons/benyi-logo-16.png",
@@ -63,7 +66,13 @@ describe("extension manifest", () => {
       "16": "assets/icons/benyi-logo-16.png",
       "32": "assets/icons/benyi-logo-32.png",
     });
-    expect(manifest.permissions).toEqual(["activeTab", "scripting", "sidePanel", "storage"]);
+    expect(manifest.permissions).toEqual([
+      "activeTab",
+      "contextMenus",
+      "scripting",
+      "sidePanel",
+      "storage",
+    ]);
     expect(manifest.version).toBe(packageJson.version);
   });
 });

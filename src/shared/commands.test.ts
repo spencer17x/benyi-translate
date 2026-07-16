@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   isPanelCommand,
   isPendingPanelCommand,
+  isSelectionCommand,
   PANEL_COMMANDS,
+  SELECTION_COMMAND,
 } from "./commands";
 
 describe("extension commands", () => {
@@ -17,5 +19,11 @@ describe("extension commands", () => {
     expect(isPanelCommand("unknown-command")).toBe(false);
     expect(isPendingPanelCommand({ tabId: -1, command: PANEL_COMMANDS.cancelTranslation })).toBe(false);
     expect(isPendingPanelCommand({ tabId: 7, command: "unknown-command" })).toBe(false);
+  });
+
+  it("recognizes the standalone selection command", () => {
+    expect(isSelectionCommand(SELECTION_COMMAND)).toBe(true);
+    expect(isPanelCommand(SELECTION_COMMAND)).toBe(false);
+    expect(isSelectionCommand("translate-page")).toBe(false);
   });
 });

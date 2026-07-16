@@ -1,6 +1,7 @@
 import {
   isPanelToPageMessage,
   isPingMessage,
+  isSelectionTranslateMessage,
   MAX_BATCH_SEGMENTS,
   PROTOCOL_VERSION,
   TASK_PORT_NAME,
@@ -29,6 +30,7 @@ import {
   renderTranslationNode,
   SOURCE_ATTRIBUTE,
 } from "./dom";
+import { initializeSelectionTranslation } from "./selection";
 
 declare global {
   var __benyiContentScriptLoaded: boolean | undefined;
@@ -80,6 +82,7 @@ if (!globalThis.__benyiContentScriptLoaded) {
 
 function initializeContentScript(): void {
   const supportedSelector = candidateSelector(location.hostname);
+  const selectionTranslation = initializeSelectionTranslation();
   let pageId = createId();
   let activeTask: PageTask | undefined;
   let activePort: chrome.runtime.Port | undefined;
@@ -90,6 +93,11 @@ function initializeContentScript(): void {
   const translationCache = new Map<string, string>();
 
   chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+    if (isSelectionTranslateMessage(message)) {
+      void selectionTranslation.translate(message.sourceText);
+      sendResponse({ accepted: true });
+      return false;
+    }
     if (!isPingMessage(message)) return false;
 
     const response: PingResponse = {

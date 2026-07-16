@@ -10,7 +10,7 @@
     "48": "assets/icons/benyi-logo-48.png",
     "128": "assets/icons/benyi-logo-128.png"
   },
-  "permissions": ["activeTab", "scripting", "sidePanel", "storage"],
+  "permissions": ["activeTab", "contextMenus", "scripting", "sidePanel", "storage"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
@@ -55,6 +55,9 @@
     },
     "cycle-display-mode": {
       "description": "切换原文、双语和仅译文显示"
+    },
+    "translate-selection": {
+      "description": "翻译选中文本"
     }
   },
   "side_panel": {
