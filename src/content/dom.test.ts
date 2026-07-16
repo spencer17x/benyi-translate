@@ -4,9 +4,12 @@ import {
   applyDisplayMode,
   clearTranslationUi,
   MODE_ATTRIBUTE,
+  renderTaskNotice,
   renderTranslationNode,
   SOURCE_ATTRIBUTE,
   STYLE_ID,
+  taskNoticeText,
+  TASK_NOTICE_ID,
 } from "./dom";
 
 describe("safe translation rendering", () => {
@@ -47,5 +50,18 @@ describe("safe translation rendering", () => {
     expect(source.hasAttribute(SOURCE_ATTRIBUTE)).toBe(false);
     expect(dom.window.document.documentElement.hasAttribute(MODE_ATTRIBUTE)).toBe(false);
     expect(dom.window.document.getElementById(STYLE_ID)).toBeNull();
+  });
+
+  it("renders a non-layout-blocking task notice and removes it when idle", () => {
+    const dom = new JSDOM("<!doctype html><body></body>");
+    const progress = { total: 5, completed: 2, failed: 1, skipped: 0 };
+
+    const host = renderTaskNotice(dom.window.document, "translating", progress);
+
+    expect(host?.id).toBe(TASK_NOTICE_ID);
+    expect(host?.dataset.benyiRoot).toBe("task-notice");
+    expect(taskNoticeText("translating", progress)).toBe("本译正在翻译 3 / 5");
+    renderTaskNotice(dom.window.document, "idle", progress);
+    expect(dom.window.document.getElementById(TASK_NOTICE_ID)).toBeNull();
   });
 });

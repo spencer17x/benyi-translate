@@ -10,6 +10,7 @@ describe("extension manifest", () => {
       readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
     ) as {
       action?: {
+        default_title?: string;
         default_icon?: Record<string, string>;
       };
       commands?: Record<string, {
@@ -66,12 +67,13 @@ describe("extension manifest", () => {
       "16": "assets/icons/benyi-logo-16.png",
       "32": "assets/icons/benyi-logo-32.png",
     });
+    expect(manifest.action?.default_title).toBe("使用本译翻译当前页");
     expect(manifest.permissions).toEqual([
       "activeTab",
       "contextMenus",
+      "offscreen",
       "scripting",
       "sidePanel",
-      "storage",
     ]);
     expect(manifest.version).toBe(packageJson.version);
   });

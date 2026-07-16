@@ -1,5 +1,4 @@
 import {
-  isActionReadyMessage,
   isPageToPanelMessage,
   PROTOCOL_VERSION,
   TASK_PORT_NAME,
@@ -8,25 +7,13 @@ import {
   type PanelToPageMessage,
   type PingMessage,
   type PingResponse,
-  type SegmentInput,
-  type SegmentResult,
   type TaskIdentity,
   type TaskProgress,
   type TaskStatus,
 } from "../shared/protocol";
-import { createId } from "../shared/id";
-import {
-  isPendingPanelCommand,
-  PENDING_PANEL_COMMAND_KEY,
-  type PanelCommand,
-} from "../shared/commands";
-import { translateText } from "../translation/translate";
+import { PANEL_COMMANDS, type PanelCommand } from "../shared/commands";
+import type { PageCommandMessage } from "../shared/engine-protocol";
 import { injectionErrorCode } from "./access";
-import { panelCommandAction } from "./command";
-
-const SOURCE_LANGUAGE = "en";
-const TARGET_LANGUAGE = "zh";
-const DETECTION_CONFIDENCE = 0.6;
 
 const statusElement = requiredElement<HTMLParagraphElement>("status");
 const statusDot = requiredElement<HTMLSpanElement>("status-dot");
@@ -54,57 +41,25 @@ let taskId: string | undefined;
 let taskStatus: TaskStatus = "idle";
 let displayMode: DisplayMode = "bilingual";
 let progress: TaskProgress = emptyProgress();
-let queue: SegmentInput[] = [];
-let queuedSegments = new Set<string>();
-let collectionDone = false;
-let collectionSample: string | undefined;
-let declaredLanguage: string | undefined;
-let sourceApproved = false;
-let modelsReady = false;
-let processing = false;
-let localPreparing = false;
-let translator: Translator | undefined;
-let detector: LanguageDetector | undefined;
-let preparationController: AbortController | undefined;
-let translationController: AbortController | undefined;
 let connectionInFlight: Promise<void> | undefined;
 let reconnectRequested = false;
-let panelCommandInFlight = false;
 
-startButton.addEventListener("click", () => {
-  void startOrResumeTranslation();
-});
-
+startButton.addEventListener("click", () => void startOrResumeTranslation());
 pauseButton.addEventListener("click", pauseTranslation);
 cancelButton.addEventListener("click", cancelTranslation);
 undoButton.addEventListener("click", undoTranslation);
-configureShortcutsButton.addEventListener("click", () => {
-  void openShortcutSettings();
-});
+configureShortcutsButton.addEventListener("click", () => void openShortcutSettings());
 
 for (const button of modeButtons) {
   button.addEventListener("click", () => {
     const mode = button.dataset.mode;
-    if (mode !== "original" && mode !== "bilingual" && mode !== "translation") return;
-    setDisplayMode(mode);
+    if (mode === "original" || mode === "bilingual" || mode === "translation") {
+      setDisplayMode(mode);
+    }
   });
 }
 
-chrome.tabs.onActivated.addListener(() => {
-  scheduleConnection();
-});
-
-chrome.runtime.onMessage.addListener((message: unknown) => {
-  if (!isActionReadyMessage(message)) return false;
-  if (activeTabId !== undefined && message.tabId !== activeTabId) return false;
-  if (activeTabId === message.tabId && pageId !== undefined && activePort) {
-    void consumePanelCommand();
-  } else {
-    scheduleConnection();
-  }
-  return false;
-});
-
+chrome.tabs.onActivated.addListener(scheduleConnection);
 scheduleConnection();
 void renderShortcutHints();
 
@@ -158,7 +113,6 @@ async function connectToActiveTab(): Promise<void> {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id === undefined) throw new BenyiError("NO_ACTIVE_TAB");
-
     activeTabId = tab.id;
     await ensureContentScript(tab.id);
 
@@ -168,10 +122,7 @@ async function connectToActiveTab(): Promise<void> {
     port.onDisconnect.addListener(() => {
       if (activePort !== port) return;
       activePort = undefined;
-      translationController?.abort();
-      destroyModels();
-      if (taskId) taskStatus = "paused";
-      setStatus("页面连接已断开。重新打开或刷新页面后可继续。", "error");
+      setStatus("控制面板已断开，页面翻译不会因此暂停。", "neutral");
       renderControls();
     });
     postToPage({ version: PROTOCOL_VERSION, type: "PANEL_HELLO", tabId: tab.id });
@@ -187,7 +138,7 @@ async function ensureContentScript(tabId: number): Promise<void> {
     const response = (await chrome.tabs.sendMessage(tabId, ping)) as PingResponse | undefined;
     if (response?.type === "BENYI_PONG") return;
   } catch {
-    // The expected path before the content script has been injected.
+    // Expected before the content script has been injected.
   }
 
   try {
@@ -198,14 +149,6 @@ async function ensureContentScript(tabId: number): Promise<void> {
   } catch (error) {
     throw new BenyiError(injectionErrorCode(error));
   }
-
-  try {
-    const response = (await chrome.tabs.sendMessage(tabId, ping)) as PingResponse | undefined;
-    if (response?.type !== "BENYI_PONG") throw new BenyiError("CONTENT_SCRIPT_UNAVAILABLE");
-  } catch (error) {
-    if (error instanceof BenyiError) throw error;
-    throw new BenyiError("CONTENT_SCRIPT_UNAVAILABLE");
-  }
 }
 
 function handlePageMessage(message: unknown): void {
@@ -214,21 +157,15 @@ function handlePageMessage(message: unknown): void {
 
   switch (message.type) {
     case "PAGE_STATE":
-      handlePageState(message);
-      break;
-    case "PAGE_COLLECTION":
-      if (!matchesCurrentTask(message)) return;
-      collectionSample = message.sourceSample;
-      declaredLanguage = message.declaredLanguage;
-      progress = { ...progress, total: message.total };
+      pageId = message.pageId;
+      taskId = message.taskId;
+      taskStatus = message.status;
+      displayMode = message.mode;
+      progress = message.progress;
+      updateModeButtons();
+      renderStatusFromTask();
       renderProgress();
-      void approveSourceLanguage().catch(failTask);
-      break;
-    case "PAGE_SEGMENTS":
-      if (!matchesCurrentTask(message)) return;
-      enqueueSegments(message.segments);
-      collectionDone ||= message.done;
-      void processQueue().catch(failTask);
+      renderControls();
       break;
     case "TASK_PROGRESS":
       if (!matchesCurrentTask(message)) return;
@@ -239,82 +176,69 @@ function handlePageMessage(message: unknown): void {
     case "TASK_STATUS":
       if (!matchesCurrentTask(message)) return;
       taskStatus = message.status;
+      renderStatusFromTask();
       renderControls();
       break;
     case "TASK_ERROR":
       if (!matchesCurrentTask(message)) return;
       taskStatus = "failed";
       setStatus(errorCodeMessage(message.errorCode), "error");
-      destroyModels();
       renderControls();
       break;
+    case "PAGE_COLLECTION":
+    case "PAGE_SEGMENTS":
+      break;
   }
 }
 
-function handlePageState(message: Extract<PageToPanelMessage, { type: "PAGE_STATE" }>): void {
-  pageId = message.pageId;
-  taskId = message.taskId;
-  taskStatus = message.status;
-  displayMode = message.mode;
-  progress = message.progress;
-
-  updateModeButtons();
-  renderProgress();
-  if (!localPreparing) renderStatusFromTask();
+async function startOrResumeTranslation(): Promise<void> {
+  taskStatus = "preparing";
+  setStatus("正在准备 Chrome 本地语言能力…", "active");
   renderControls();
-  void consumePanelCommand();
-}
-
-async function consumePanelCommand(): Promise<void> {
-  if (panelCommandInFlight || activeTabId === undefined || pageId === undefined) return;
-  panelCommandInFlight = true;
-  const requestedTabId = activeTabId;
-
   try {
-    const pending = await chrome.storage.session.get(PENDING_PANEL_COMMAND_KEY);
-    const request = pending[PENDING_PANEL_COMMAND_KEY];
-    if (!isPendingPanelCommand(request) || request.tabId !== requestedTabId) return;
-    await chrome.storage.session.remove(PENDING_PANEL_COMMAND_KEY);
-    if (activeTabId !== requestedTabId || pageId === undefined) return;
-    await executePanelCommand(request.command);
-  } finally {
-    panelCommandInFlight = false;
+    await runPageCommand(PANEL_COMMANDS.translatePage);
+  } catch {
+    taskStatus = "failed";
+    setStatus("无法启动当前页面翻译，请刷新后重试。", "error");
+    renderControls();
   }
 }
 
-async function executePanelCommand(command: PanelCommand): Promise<void> {
-  const action = panelCommandAction(command, {
-    taskStatus,
-    localPreparing,
-    hasTask: taskId !== undefined,
-    completed: progress.completed,
-  });
-
-  switch (action) {
-    case "start":
-      await startOrResumeTranslation();
-      break;
-    case "pause":
-      pauseTranslation();
-      break;
-    case "cancel":
-      cancelTranslation();
-      break;
-    case "undo":
-      undoTranslation();
-      break;
-    case "cycle-display":
-      cycleDisplayMode();
-      break;
-    case "none":
-      break;
-  }
+function pauseTranslation(): void {
+  if (taskStatus !== "translating") return;
+  taskStatus = "paused";
+  void runPageCommand(PANEL_COMMANDS.togglePause).catch(() => undefined);
+  setStatus("翻译已暂停，已完成的译文会保留。", "neutral");
+  renderControls();
 }
 
-function cycleDisplayMode(): void {
-  const modes: DisplayMode[] = ["original", "bilingual", "translation"];
-  const currentIndex = modes.indexOf(displayMode);
-  setDisplayMode(modes[(currentIndex + 1) % modes.length]!);
+function cancelTranslation(): void {
+  taskStatus = "cancelled";
+  void runPageCommand(PANEL_COMMANDS.cancelTranslation).catch(() => undefined);
+  setStatus("翻译已取消，已完成的译文仍保留在页面中。", "neutral");
+  renderControls();
+}
+
+function undoTranslation(): void {
+  void runPageCommand(PANEL_COMMANDS.undoTranslation).catch(() => undefined);
+  taskId = undefined;
+  taskStatus = "idle";
+  progress = emptyProgress();
+  setStatus("已恢复原始页面。", "neutral");
+  renderProgress();
+  renderControls();
+}
+
+async function runPageCommand(command: PanelCommand): Promise<void> {
+  if (activeTabId === undefined) throw new Error("No active tab");
+  const message: PageCommandMessage = {
+    version: PROTOCOL_VERSION,
+    type: "PAGE_COMMAND",
+    tabId: activeTabId,
+    command,
+  };
+  const response = (await chrome.runtime.sendMessage(message)) as { accepted?: boolean } | undefined;
+  if (!response?.accepted) throw new Error("Page command was rejected");
 }
 
 function setDisplayMode(mode: DisplayMode): void {
@@ -324,295 +248,11 @@ function setDisplayMode(mode: DisplayMode): void {
   if (identity) postToPage({ version: PROTOCOL_VERSION, type: "PAGE_MODE_SET", ...identity, mode });
 }
 
-async function startOrResumeTranslation(): Promise<void> {
-  const tabId = activeTabId;
-  const currentPageId = pageId;
-  if (tabId === undefined || currentPageId === undefined || !activePort) return;
-
-  const isResume = taskStatus === "paused" && taskId !== undefined;
-  const nextTaskId: string = isResume ? taskId! : createId();
-  taskId = nextTaskId;
-  taskStatus = "preparing";
-  localPreparing = true;
-  sourceApproved = isResume;
-  modelsReady = false;
-  collectionDone = false;
-  collectionSample = undefined;
-  declaredLanguage = undefined;
-  queue = [];
-  queuedSegments = new Set();
-  progress = isResume ? progress : emptyProgress();
-  renderControls();
-  setStatus("正在准备 Chrome 本地语言能力…", "active");
-
-  const modelsPromise = prepareModels();
-  const identity: TaskIdentity = { tabId, pageId: currentPageId, taskId: nextTaskId };
-  postToPage(
-    isResume
-      ? { version: PROTOCOL_VERSION, type: "TRANSLATION_RESUME", ...identity }
-      : {
-          version: PROTOCOL_VERSION,
-          type: "PAGE_COLLECT",
-          ...identity,
-          sourceLanguage: SOURCE_LANGUAGE,
-          targetLanguage: TARGET_LANGUAGE,
-          mode: displayMode,
-        },
-  );
-
-  try {
-    await modelsPromise;
-    modelsReady = true;
-    localPreparing = false;
-    taskStatus = "translating";
-    await approveSourceLanguage();
-    renderControls();
-    await processQueue();
-  } catch (error) {
-    failTask(error);
-  }
-}
-
-async function prepareModels(): Promise<void> {
-  if (translator) {
-    modelsReady = true;
-    return;
-  }
-  if (!("Translator" in self)) throw new BenyiError("API_UNSUPPORTED");
-
-  preparationController?.abort();
-  const controller = new AbortController();
-  preparationController = controller;
-
-  const availabilityPromise = Translator.availability({
-    sourceLanguage: SOURCE_LANGUAGE,
-    targetLanguage: TARGET_LANGUAGE,
-  });
-  const translatorPromise = Translator.create({
-    sourceLanguage: SOURCE_LANGUAGE,
-    targetLanguage: TARGET_LANGUAGE,
-    signal: controller.signal,
-    monitor(monitor) {
-      monitor.addEventListener("downloadprogress", (event) => {
-        showPreparationProgress(event.loaded);
-      });
-    },
-  });
-
-  const detectorPromise = prepareDetector(controller.signal);
-  const availability = await availabilityPromise;
-  if (availability === "downloadable" || availability === "downloading") {
-    setStatus("正在准备英语和简体中文语言资源…", "active");
-    showPreparationProgress(0);
-  }
-  [translator, detector] = await Promise.all([translatorPromise, detectorPromise]);
-  preparationController = undefined;
-  renderProgress();
-}
-
-async function prepareDetector(signal: AbortSignal): Promise<LanguageDetector | undefined> {
-  if (!("LanguageDetector" in self)) return undefined;
-  try {
-    return await LanguageDetector.create({ signal });
-  } catch {
-    return undefined;
-  }
-}
-
-async function approveSourceLanguage(): Promise<void> {
-  if (sourceApproved || !modelsReady || collectionSample === undefined) return;
-  if (progress.total === 0 || !collectionSample.trim()) {
-    sourceApproved = false;
-    taskStatus = "completed";
-    setStatus("当前页面没有发现可翻译的正文。", "neutral");
-    const identity = currentIdentity();
-    if (identity) postToPage({ version: PROTOCOL_VERSION, type: "TASK_COMPLETE", ...identity });
-    destroyModels();
-    renderControls();
-    return;
-  }
-
-  let sourceLanguage = languageBase(declaredLanguage);
-  if (detector) {
-    try {
-      const [result] = await detector.detect(collectionSample);
-      const detected = languageBase(result?.detectedLanguage);
-      const confidence = result?.confidence ?? 0;
-      if (detected && confidence >= DETECTION_CONFIDENCE) sourceLanguage = detected;
-    } catch {
-      // The declared language or English fallback remains available.
-    } finally {
-      detector.destroy();
-      detector = undefined;
-    }
-  }
-
-  if (sourceLanguage === "zh") {
-    taskStatus = "completed";
-    setStatus("页面主要内容已经是中文，无需翻译。", "neutral");
-    const identity = currentIdentity();
-    if (identity) postToPage({ version: PROTOCOL_VERSION, type: "TASK_COMPLETE", ...identity });
-    translator?.destroy();
-    translator = undefined;
-    renderControls();
-    return;
-  }
-
-  if (sourceLanguage && sourceLanguage !== "en") {
-    throw new BenyiError("SOURCE_LANGUAGE_UNSUPPORTED");
-  }
-
-  sourceApproved = true;
-  setStatus("正在翻译当前页面…", "active");
-  await processQueue();
-}
-
-function enqueueSegments(segments: SegmentInput[]): void {
-  for (const segment of segments) {
-    const key = segmentKey(segment);
-    if (queuedSegments.has(key)) continue;
-    queuedSegments.add(key);
-    queue.push(segment);
-  }
-  queue.sort((left, right) => left.priority - right.priority);
-}
-
-async function processQueue(): Promise<void> {
-  if (processing || !translator || !sourceApproved || taskStatus !== "translating") return;
-  processing = true;
-
-  try {
-    while (queue.length > 0 && taskStatus === "translating") {
-      const segment = queue.shift();
-      if (!segment) break;
-      queuedSegments.delete(segmentKey(segment));
-      const identity = currentIdentity();
-      if (!identity) return;
-
-      const controller = new AbortController();
-      translationController = controller;
-
-      try {
-        const translatedText = await translateText(translator, segment.sourceText, controller.signal);
-        const result: SegmentResult = {
-          segmentId: segment.segmentId,
-          contentHash: segment.contentHash,
-          status: "translated",
-          translatedText,
-        };
-        postResult(identity, result);
-      } catch (error) {
-        if (isAbortError(error)) {
-          if ((taskStatus as TaskStatus) === "paused") {
-            queue.unshift(segment);
-            queuedSegments.add(segmentKey(segment));
-          }
-          break;
-        }
-
-        postResult(identity, {
-          segmentId: segment.segmentId,
-          contentHash: segment.contentHash,
-          status: "failed",
-          errorCode: errorCode(error),
-        });
-      } finally {
-        if (translationController === controller) translationController = undefined;
-      }
-    }
-
-    if (collectionDone && queue.length === 0 && taskStatus === "translating") {
-      const identity = currentIdentity();
-      if (identity) postToPage({ version: PROTOCOL_VERSION, type: "TASK_COMPLETE", ...identity });
-      taskStatus = "completed";
-      setStatus("当前页面翻译完成。", "success");
-      destroyModels();
-      renderControls();
-    }
-  } finally {
-    processing = false;
-  }
-}
-
-function pauseTranslation(): void {
-  const identity = currentIdentity();
-  if (!identity || taskStatus !== "translating") return;
-  taskStatus = "paused";
-  translationController?.abort();
-  postToPage({ version: PROTOCOL_VERSION, type: "TRANSLATION_PAUSE", ...identity });
-  setStatus("翻译已暂停，已完成的译文会保留。", "neutral");
-  renderControls();
-}
-
-function cancelTranslation(): void {
-  const identity = currentIdentity();
-  if (!identity) return;
-  taskStatus = "cancelled";
-  localPreparing = false;
-  preparationController?.abort();
-  translationController?.abort();
-  queue = [];
-  queuedSegments.clear();
-  collectionDone = true;
-  postToPage({ version: PROTOCOL_VERSION, type: "TRANSLATION_CANCEL", ...identity });
-  destroyModels();
-  setStatus("翻译已取消，已完成的译文仍保留在页面中。", "neutral");
-  renderControls();
-}
-
-function failTask(error: unknown): void {
-  if (isAbortError(error)) return;
-  localPreparing = false;
-  taskStatus = "failed";
-  setStatus(errorMessage(error), "error");
-  const identity = currentIdentity();
-  if (identity) {
-    postToPage({
-      version: PROTOCOL_VERSION,
-      type: "TASK_FAIL",
-      ...identity,
-      errorCode: errorCode(error),
-    });
-  }
-  destroyModels();
-  renderControls();
-}
-
-function undoTranslation(): void {
-  const identity = currentIdentity();
-  if (!identity) return;
-  preparationController?.abort();
-  translationController?.abort();
-  postToPage({ version: PROTOCOL_VERSION, type: "PAGE_UNDO", ...identity });
-  destroyModels();
-  queue = [];
-  queuedSegments.clear();
-  taskId = undefined;
-  taskStatus = "idle";
-  progress = emptyProgress();
-  setStatus("已恢复原始页面。", "neutral");
-  renderProgress();
-  renderControls();
-}
-
-function postResult(identity: TaskIdentity, result: SegmentResult): void {
-  const message: PanelToPageMessage = {
-    version: PROTOCOL_VERSION,
-    type: "TRANSLATION_RESULT",
-    ...identity,
-    batchId: createId(),
-    results: [result],
-  };
-  postToPage(message);
-}
-
 function postToPage(message: PanelToPageMessage): void {
   try {
     activePort?.postMessage(message);
   } catch {
-    taskStatus = taskId ? "paused" : "idle";
     setStatus("无法连接当前页面。", "error");
-    renderControls();
   }
 }
 
@@ -632,9 +272,6 @@ function matchesCurrentTask(message: TaskIdentity): boolean {
 }
 
 function disconnectFromPage(): void {
-  translationController?.abort();
-  preparationController?.abort();
-  destroyModels();
   if (activePort) {
     activePort.disconnect();
     activePort = undefined;
@@ -643,38 +280,13 @@ function disconnectFromPage(): void {
   pageId = undefined;
   taskId = undefined;
   taskStatus = "idle";
-  localPreparing = false;
-  queue = [];
-  queuedSegments.clear();
-  collectionDone = false;
-  collectionSample = undefined;
-  declaredLanguage = undefined;
-  sourceApproved = false;
-  modelsReady = false;
   progress = emptyProgress();
   renderProgress();
 }
 
-function destroyModels(): void {
-  detector?.destroy();
-  translator?.destroy();
-  detector = undefined;
-  translator = undefined;
-  modelsReady = false;
-  preparationController = undefined;
-  translationController = undefined;
-}
-
-function showPreparationProgress(value: number): void {
-  progressWrap.hidden = false;
-  progressElement.max = 1;
-  progressElement.value = Math.max(0, Math.min(value, 1));
-  progressLabel.textContent = `${Math.round(value * 100)}%`;
-}
-
 function renderProgress(): void {
   const handled = progress.completed + progress.failed + progress.skipped;
-  progressWrap.hidden = progress.total === 0 && !localPreparing;
+  progressWrap.hidden = progress.total === 0;
   progressElement.max = Math.max(progress.total, 1);
   progressElement.value = Math.min(handled, progress.total);
   progressLabel.textContent = `${handled} / ${progress.total}`;
@@ -689,7 +301,7 @@ function renderProgress(): void {
 
 function renderControls(): void {
   const connected = activePort !== undefined && pageId !== undefined;
-  const busy = localPreparing || taskStatus === "collecting" || taskStatus === "preparing" || taskStatus === "translating";
+  const busy = taskStatus === "collecting" || taskStatus === "preparing" || taskStatus === "translating";
   translationCard.dataset.taskStatus = taskStatus;
   translationCard.setAttribute("aria-busy", String(busy));
   startButton.disabled = !connected || busy;
@@ -699,7 +311,7 @@ function renderControls(): void {
       : taskStatus === "completed" || taskStatus === "cancelled" || taskStatus === "failed"
         ? "重新翻译"
         : "开始翻译";
-  startButton.hidden = taskStatus === "translating" || localPreparing;
+  startButton.hidden = taskStatus === "translating" || taskStatus === "preparing";
   pauseButton.hidden = taskStatus !== "translating";
   cancelButton.hidden = !busy && taskStatus !== "paused";
   undoButton.disabled = progress.completed === 0 || taskId === undefined;
@@ -709,7 +321,7 @@ function renderControls(): void {
 function renderStatusFromTask(): void {
   switch (taskStatus) {
     case "idle":
-      setStatus("正文仅由 Chrome 本地处理，准备好后即可开始。", "neutral");
+      setStatus("正文仅由 Chrome 本地处理；关闭面板后翻译仍会继续。", "neutral");
       break;
     case "collecting":
       setStatus("正在发现当前页面中的可阅读正文…", "active");
@@ -718,7 +330,7 @@ function renderStatusFromTask(): void {
       setStatus("正在准备 Chrome 本地语言能力…", "active");
       break;
     case "translating":
-      setStatus("正在翻译当前页面…", "active");
+      setStatus("正在后台翻译当前页面，可以关闭控制面板。", "active");
       break;
     case "paused":
       setStatus("翻译已暂停，已完成的译文会保留。", "neutral");
@@ -748,31 +360,12 @@ function updateModeButtons(): void {
   }
 }
 
-function languageBase(value: string | undefined): string | undefined {
-  return value?.trim().toLowerCase().split("-")[0] || undefined;
-}
-
-function segmentKey(segment: SegmentInput): string {
-  return `${segment.segmentId}:${segment.contentHash}`;
-}
-
 function emptyProgress(): TaskProgress {
   return { total: 0, completed: 0, failed: 0, skipped: 0 };
 }
 
-function errorCode(error: unknown): string {
-  if (error instanceof BenyiError) return error.code;
-  if (error instanceof DOMException) {
-    if (error.name === "NotSupportedError") return "PAIR_UNAVAILABLE";
-    if (error.name === "NetworkError") return "MODEL_DOWNLOAD_FAILED";
-    if (error.name === "QuotaExceededError") return "INPUT_TOO_LARGE";
-    if (error.name === "AbortError") return "TRANSLATION_CANCELLED";
-  }
-  return "UNKNOWN_ERROR";
-}
-
 function errorMessage(error: unknown): string {
-  return errorCodeMessage(errorCode(error));
+  return errorCodeMessage(error instanceof BenyiError ? error.code : "UNKNOWN_ERROR");
 }
 
 function errorCodeMessage(code: string): string {
@@ -799,13 +392,11 @@ function errorCodeMessage(code: string): string {
       return "部分段落超过本地翻译能力的输入限制。";
     case "TRANSLATION_CANCELLED":
       return "翻译已取消。";
+    case "USER_ACTIVATION_REQUIRED":
+      return "首次下载本地语言资源需要再次点击工具栏中的本译图标。";
     default:
       return "翻译过程中发生错误，请重试。";
   }
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
 }
 
 function requiredElement<T extends HTMLElement>(id: string): T {

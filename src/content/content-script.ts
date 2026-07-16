@@ -16,6 +16,11 @@ import {
   type TaskStatus,
 } from "../shared/protocol";
 import {
+  isPageCommandMessage,
+  type EnginePageMessage,
+} from "../shared/engine-protocol";
+import { PANEL_COMMANDS } from "../shared/commands";
+import {
   batchSegments,
   hashText,
   isProbablyChinese,
@@ -27,8 +32,10 @@ import { candidateSelector, preferredDeclaredLanguage } from "./candidates";
 import {
   applyDisplayMode,
   clearTranslationUi,
+  renderTaskNotice,
   renderTranslationNode,
   SOURCE_ATTRIBUTE,
+  TASK_NOTICE_ID,
 } from "./dom";
 import { initializeSelectionTranslation } from "./selection";
 
@@ -89,10 +96,21 @@ function initializeContentScript(): void {
   let trustedTabId: number | undefined;
   let segmentCounter = 0;
   let mutationTimer: number | undefined;
+  let taskNoticeTimer: number | undefined;
   const elementSegments = new WeakMap<HTMLElement, string>();
   const translationCache = new Map<string, string>();
 
   chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+    if (isPageCommandMessage(message)) {
+      trustedTabId = message.tabId;
+      void handlePageCommand(message.command);
+      sendResponse({ accepted: true });
+      return false;
+    }
+    if (isPanelToPageMessage(message)) {
+      void handlePanelMessage(message);
+      return false;
+    }
     if (isSelectionTranslateMessage(message)) {
       void selectionTranslation.translate(message.sourceText);
       sendResponse({ accepted: true });
@@ -114,7 +132,6 @@ function initializeContentScript(): void {
 
     if (activePort && activePort !== port) activePort.disconnect();
     activePort = port;
-    trustedTabId = undefined;
 
     port.onMessage.addListener((message: unknown) => {
       if (!isPanelToPageMessage(message)) return;
@@ -123,16 +140,12 @@ function initializeContentScript(): void {
 
     port.onDisconnect.addListener(() => {
       if (activePort !== port) return;
-      if (activeTask && ["collecting", "preparing", "translating"].includes(activeTask.status)) {
-        activeTask.status = "paused";
-      }
       activePort = undefined;
-      trustedTabId = undefined;
     });
   });
 
   const observer = new MutationObserver((mutations) => {
-    if (!activeTask || activeTask.status !== "translating" || !activePort) return;
+    if (!activeTask || activeTask.status !== "translating") return;
     const hasPageChange = mutations.some(
       (mutation) =>
         (mutation.type === "characterData" && !isExtensionNode(mutation.target)) ||
@@ -208,6 +221,58 @@ function initializeContentScript(): void {
         break;
       case "PAGE_UNDO":
         if (matchesActiveTask(message)) undoPage();
+        break;
+    }
+  }
+
+  async function handlePageCommand(command: (typeof PANEL_COMMANDS)[keyof typeof PANEL_COMMANDS]): Promise<void> {
+    if (trustedTabId === undefined) return;
+
+    switch (command) {
+      case PANEL_COMMANDS.translatePage:
+        if (activeTask?.status === "paused") {
+          await resumeTask(identity());
+        } else {
+          await startTask({
+            version: PROTOCOL_VERSION,
+            type: "PAGE_COLLECT",
+            tabId: trustedTabId,
+            pageId,
+            taskId: createId(),
+            sourceLanguage: "en",
+            targetLanguage: "zh",
+            mode: activeTask?.mode ?? "bilingual",
+          });
+        }
+        break;
+      case PANEL_COMMANDS.togglePause:
+        if (activeTask?.status === "translating") {
+          activeTask.status = "paused";
+          sendPageState();
+        } else if (activeTask?.status === "paused") {
+          await resumeTask(identity());
+        }
+        break;
+      case PANEL_COMMANDS.cancelTranslation:
+        if (activeTask) {
+          activeTask.status = "cancelled";
+          for (const state of activeTask.segments.values()) {
+            if (state.status === "queued" || state.status === "sent") state.status = "cancelled";
+          }
+          sendPageState();
+        }
+        break;
+      case PANEL_COMMANDS.undoTranslation:
+        undoPage();
+        break;
+      case PANEL_COMMANDS.cycleDisplayMode:
+        if (activeTask) {
+          const modes: DisplayMode[] = ["original", "bilingual", "translation"];
+          const currentIndex = modes.indexOf(activeTask.mode);
+          activeTask.mode = modes[(currentIndex + 1) % modes.length]!;
+          applyDisplayMode(document, activeTask.mode);
+          sendPageState();
+        }
         break;
     }
   }
@@ -318,7 +383,7 @@ function initializeContentScript(): void {
       .map((state) => state.input.sourceText)
       .join("\n")
       .slice(0, SAMPLE_LIMIT);
-    postToPanel({
+    postToEngine({
       version: PROTOCOL_VERSION,
       type: "PAGE_COLLECTION",
       ...identity(),
@@ -339,7 +404,7 @@ function initializeContentScript(): void {
     const batches = batchSegments(pending.map((state) => state.input));
 
     if (batches.length === 0) {
-      postToPanel({
+      postToEngine({
         version: PROTOCOL_VERSION,
         type: "PAGE_SEGMENTS",
         ...identity(),
@@ -355,7 +420,7 @@ function initializeContentScript(): void {
         const state = activeTask?.segments.get(segment.segmentId);
         if (state) state.status = "sent";
       }
-      postToPanel({
+      postToEngine({
         version: PROTOCOL_VERSION,
         type: "PAGE_SEGMENTS",
         ...identity(),
@@ -433,16 +498,18 @@ function initializeContentScript(): void {
 
   function sendProgress(): void {
     if (!activeTask || trustedTabId === undefined) return;
+    const progress = getProgress(activeTask);
     postToPanel({
       version: PROTOCOL_VERSION,
       type: "TASK_PROGRESS",
       ...identity(),
-      progress: getProgress(activeTask),
+      progress,
     });
+    renderTaskNotice(document, activeTask.status, progress);
   }
 
   function sendPageState(): void {
-    if (!activePort || trustedTabId === undefined) return;
+    if (trustedTabId === undefined) return;
     const message: PageToPanelMessage = activeTask
       ? {
           version: PROTOCOL_VERSION,
@@ -464,16 +531,26 @@ function initializeContentScript(): void {
           progress: emptyProgress(),
         };
     postToPanel(message);
+    postToEngine(message);
+    window.clearTimeout(taskNoticeTimer);
+    renderTaskNotice(document, message.status, message.progress);
+    if (message.status === "completed" || message.status === "cancelled") {
+      taskNoticeTimer = window.setTimeout(() => {
+        document.getElementById(TASK_NOTICE_ID)?.remove();
+      }, 2_400);
+    }
   }
 
   function sendTaskError(errorCode: string): void {
     if (!activeTask || trustedTabId === undefined) return;
-    postToPanel({
+    const message: PageToPanelMessage = {
       version: PROTOCOL_VERSION,
       type: "TASK_ERROR",
       ...identity(),
       errorCode,
-    });
+    };
+    postToPanel(message);
+    postToEngine(message);
   }
 
   function postToPanel(message: PageToPanelMessage): void {
@@ -482,6 +559,15 @@ function initializeContentScript(): void {
     } catch {
       if (activeTask && activeTask.status === "translating") activeTask.status = "paused";
     }
+  }
+
+  function postToEngine(message: PageToPanelMessage): void {
+    const envelope: EnginePageMessage = {
+      version: PROTOCOL_VERSION,
+      type: "ENGINE_PAGE_MESSAGE",
+      message,
+    };
+    void chrome.runtime.sendMessage(envelope).catch(() => undefined);
   }
 
   function matchesActiveTask(message: TaskIdentity): boolean {

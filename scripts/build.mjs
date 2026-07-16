@@ -23,6 +23,7 @@ await rm(dist, { recursive: true, force: true });
 await Promise.all([
   mkdir(resolve(dist, "assets/icons"), { recursive: true }),
   mkdir(resolve(dist, "assets/ui"), { recursive: true }),
+  mkdir(resolve(dist, "offscreen"), { recursive: true }),
   mkdir(resolve(dist, "sidepanel"), { recursive: true }),
 ]);
 
@@ -41,6 +42,7 @@ await Promise.all([
     resolve(dist, "assets/ui/tabler-LICENSE.txt"),
   ),
   cp(resolve(src, "manifest.json"), resolve(dist, "manifest.json")),
+  cp(resolve(src, "offscreen/index.html"), resolve(dist, "offscreen/index.html")),
   cp(resolve(src, "sidepanel/index.html"), resolve(dist, "sidepanel/index.html")),
   cp(resolve(src, "sidepanel/sidepanel.css"), resolve(dist, "sidepanel/sidepanel.css")),
 ]);
@@ -57,6 +59,12 @@ await Promise.all([
     ...common,
     entryPoints: [resolve(src, "background/service-worker.ts")],
     outfile: resolve(dist, "background/service-worker.js"),
+    format: "esm",
+  }),
+  build({
+    ...common,
+    entryPoints: [resolve(src, "offscreen/engine.ts")],
+    outfile: resolve(dist, "offscreen/engine.js"),
     format: "esm",
   }),
   build({

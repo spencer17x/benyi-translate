@@ -1,8 +1,9 @@
-import type { DisplayMode } from "../shared/protocol";
+import type { DisplayMode, TaskProgress, TaskStatus } from "../shared/protocol";
 
 export const STYLE_ID = "benyi-translation-style";
 export const SOURCE_ATTRIBUTE = "data-benyi-source";
 export const MODE_ATTRIBUTE = "data-benyi-mode";
+export const TASK_NOTICE_ID = "benyi-task-notice";
 
 export function renderTranslationNode(
   document: Document,
@@ -36,6 +37,89 @@ export function clearTranslationUi(document: Document): void {
   });
   document.documentElement.removeAttribute(MODE_ATTRIBUTE);
   document.getElementById(STYLE_ID)?.remove();
+  document.getElementById(TASK_NOTICE_ID)?.remove();
+}
+
+export function renderTaskNotice(
+  document: Document,
+  status: TaskStatus,
+  progress: TaskProgress,
+): HTMLElement | undefined {
+  if (status === "idle") {
+    document.getElementById(TASK_NOTICE_ID)?.remove();
+    return undefined;
+  }
+
+  let host = document.getElementById(TASK_NOTICE_ID);
+  if (!host) {
+    host = document.createElement("div");
+    host.id = TASK_NOTICE_ID;
+    host.dataset.benyiRoot = "task-notice";
+    const shadow = host.attachShadow({ mode: "closed" });
+    const style = document.createElement("style");
+    style.textContent = `
+      :host { all: initial; color-scheme: light dark; }
+      .notice {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 2147483646;
+        box-sizing: border-box;
+        max-width: min(320px, calc(100vw - 36px));
+        padding: 10px 14px;
+        border: 1px solid rgba(44, 92, 61, 0.18);
+        border-radius: 13px;
+        background: rgba(250, 253, 251, 0.96);
+        color: #21452d;
+        box-shadow: 0 10px 32px rgba(26, 67, 41, 0.18);
+        font: 650 13px/1.45 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        backdrop-filter: blur(14px);
+      }
+      .notice[data-tone="success"] { border-color: rgba(40, 122, 73, 0.32); color: #216b3e; }
+      .notice[data-tone="error"] { border-color: rgba(163, 60, 56, 0.28); color: #9a3532; }
+      @media (prefers-color-scheme: dark) {
+        .notice { border-color: rgba(183, 216, 193, 0.18); background: rgba(27, 35, 30, 0.96); color: #dcebe0; }
+        .notice[data-tone="success"] { color: #78d394; }
+        .notice[data-tone="error"] { color: #f0a09b; }
+      }
+    `;
+    const notice = document.createElement("div");
+    notice.className = "notice";
+    notice.setAttribute("role", "status");
+    notice.setAttribute("aria-live", "polite");
+    shadow.append(style, notice);
+    (host as HTMLElement & { __benyiNotice?: HTMLElement }).__benyiNotice = notice;
+    (document.body ?? document.documentElement).append(host);
+  }
+
+  const target = (host as HTMLElement & { __benyiNotice?: HTMLElement }).__benyiNotice;
+  if (target) updateTaskNotice(target, status, progress);
+  return host;
+}
+
+function updateTaskNotice(target: HTMLElement, status: TaskStatus, progress: TaskProgress): void {
+  target.textContent = taskNoticeText(status, progress);
+  target.dataset.tone =
+    status === "completed" ? "success" : status === "failed" ? "error" : "active";
+}
+
+export function taskNoticeText(status: TaskStatus, progress: TaskProgress): string {
+  const handled = progress.completed + progress.failed + progress.skipped;
+  return (
+    status === "collecting" || status === "preparing"
+      ? "本译正在准备本地翻译…"
+      : status === "translating"
+        ? progress.total > 0
+          ? `本译正在翻译 ${handled} / ${progress.total}`
+          : "本译正在翻译当前页面…"
+        : status === "paused"
+          ? "本译翻译已暂停"
+          : status === "cancelled"
+            ? "本译翻译已取消"
+            : status === "completed"
+              ? "本译翻译完成"
+              : "本译翻译未完成，请重试"
+  );
 }
 
 export function ensureTranslationStyle(document: Document): void {

@@ -10,13 +10,13 @@
     "48": "assets/icons/benyi-logo-48.png",
     "128": "assets/icons/benyi-logo-128.png"
   },
-  "permissions": ["activeTab", "contextMenus", "scripting", "sidePanel", "storage"],
+  "permissions": ["activeTab", "contextMenus", "offscreen", "scripting", "sidePanel"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
   },
   "action": {
-    "default_title": "打开本译",
+    "default_title": "使用本译翻译当前页",
     "default_icon": {
       "16": "assets/icons/benyi-logo-16.png",
       "32": "assets/icons/benyi-logo-32.png"
