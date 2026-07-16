@@ -65,6 +65,20 @@
             <button type="button" data-mode="bilingual" aria-pressed="true">双语</button>
             <button type="button" data-mode="translation">仅译文</button>
           </div>
+          <div class="color-setting">
+            <div class="color-copy">
+              <h3>译文颜色</h3>
+              <p>选择后立即应用到所有已翻译页面</p>
+            </div>
+            <div class="color-controls">
+              <label class="color-picker" title="选择译文颜色">
+                <span class="visually-hidden">选择译文颜色</span>
+                <input id="translation-color" type="color" value="#24683a" />
+              </label>
+              <output id="translation-color-value" for="translation-color">#24683A</output>
+              <button id="reset-translation-color" class="color-reset" type="button" disabled>默认</button>
+            </div>
+          </div>
         </div>
 
         <div class="translation-section details" aria-labelledby="details-heading">

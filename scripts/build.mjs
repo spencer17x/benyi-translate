@@ -1,4 +1,5 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -18,12 +19,12 @@ const uiIconNames = [
   "shield-lock",
   "square-x",
 ];
+const buildId = process.env.BENYI_BUILD_ID ?? randomUUID();
 
 await rm(dist, { recursive: true, force: true });
 await Promise.all([
   mkdir(resolve(dist, "assets/icons"), { recursive: true }),
   mkdir(resolve(dist, "assets/ui"), { recursive: true }),
-  mkdir(resolve(dist, "offscreen"), { recursive: true }),
   mkdir(resolve(dist, "sidepanel"), { recursive: true }),
 ]);
 
@@ -42,7 +43,6 @@ await Promise.all([
     resolve(dist, "assets/ui/tabler-LICENSE.txt"),
   ),
   cp(resolve(src, "manifest.json"), resolve(dist, "manifest.json")),
-  cp(resolve(src, "offscreen/index.html"), resolve(dist, "offscreen/index.html")),
   cp(resolve(src, "sidepanel/index.html"), resolve(dist, "sidepanel/index.html")),
   cp(resolve(src, "sidepanel/sidepanel.css"), resolve(dist, "sidepanel/sidepanel.css")),
 ]);
@@ -63,15 +63,10 @@ await Promise.all([
   }),
   build({
     ...common,
-    entryPoints: [resolve(src, "offscreen/engine.ts")],
-    outfile: resolve(dist, "offscreen/engine.js"),
-    format: "esm",
-  }),
-  build({
-    ...common,
     entryPoints: [resolve(src, "content/content-script.ts")],
     outfile: resolve(dist, "content/content-script.js"),
     format: "iife",
+    define: { __BENYI_BUILD_ID__: JSON.stringify(buildId) },
   }),
   build({
     ...common,

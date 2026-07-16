@@ -15,33 +15,40 @@ import {
   type TaskProgress,
   type TaskStatus,
 } from "../shared/protocol";
-import {
-  isPageCommandMessage,
-  type EnginePageMessage,
-} from "../shared/engine-protocol";
+import { isPageCommandMessage } from "../shared/engine-protocol";
 import { PANEL_COMMANDS } from "../shared/commands";
 import {
-  batchSegments,
   hashText,
   isProbablyChinese,
   normalizeText,
   shouldSkipText,
 } from "../shared/text";
 import { createId } from "../shared/id";
+import {
+  normalizeTranslationColor,
+  TRANSLATION_COLOR_STORAGE_KEY,
+} from "../shared/preferences";
+import { translateText } from "../translation/translate";
 import { candidateSelector, preferredDeclaredLanguage } from "./candidates";
 import {
   applyDisplayMode,
+  applyTranslationColor,
   clearTranslationUi,
   renderTaskNotice,
   renderTranslationNode,
   SOURCE_ATTRIBUTE,
+  STYLE_ID,
   TASK_NOTICE_ID,
 } from "./dom";
 import { initializeSelectionTranslation } from "./selection";
 
 declare global {
-  var __benyiContentScriptLoaded: boolean | undefined;
+  var __benyiContentScriptInstance:
+    | { buildId: string; dispose(): void }
+    | undefined;
 }
+
+declare const __BENYI_BUILD_ID__: string;
 
 const EXCLUDED_SELECTOR = [
   "script",
@@ -63,6 +70,9 @@ const EXCLUDED_SELECTOR = [
 const CACHE_SCHEMA_VERSION = 1;
 const CACHE_LIMIT = 1_000;
 const SAMPLE_LIMIT = 4_000;
+const SOURCE_LANGUAGE = "en";
+const TARGET_LANGUAGE = "zh";
+const DETECTION_CONFIDENCE = 0.6;
 
 type SegmentStatus = "queued" | "sent" | "translated" | "failed" | "cancelled";
 
@@ -82,12 +92,15 @@ type PageTask = {
   segments: Map<string, SegmentState>;
 };
 
-if (!globalThis.__benyiContentScriptLoaded) {
-  globalThis.__benyiContentScriptLoaded = true;
-  initializeContentScript();
+if (globalThis.__benyiContentScriptInstance?.buildId !== __BENYI_BUILD_ID__) {
+  globalThis.__benyiContentScriptInstance?.dispose();
+  globalThis.__benyiContentScriptInstance = {
+    buildId: __BENYI_BUILD_ID__,
+    dispose: initializeContentScript(),
+  };
 }
 
-function initializeContentScript(): void {
+function initializeContentScript(): () => void {
   const supportedSelector = candidateSelector(location.hostname);
   const selectionTranslation = initializeSelectionTranslation();
   let pageId = createId();
@@ -97,10 +110,21 @@ function initializeContentScript(): void {
   let segmentCounter = 0;
   let mutationTimer: number | undefined;
   let taskNoticeTimer: number | undefined;
+  let pageTranslator: Translator | undefined;
+  let pageDetector: LanguageDetector | undefined;
+  let modelController: AbortController | undefined;
+  let translationController: AbortController | undefined;
+  let processing = false;
+  let translationColor: string | undefined;
   const elementSegments = new WeakMap<HTMLElement, string>();
   const translationCache = new Map<string, string>();
+  const preferencesReady = loadTranslationColor();
 
-  chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  const handleRuntimeMessage: Parameters<typeof chrome.runtime.onMessage.addListener>[0] = (
+    message: unknown,
+    _sender,
+    sendResponse,
+  ) => {
     if (isPageCommandMessage(message)) {
       trustedTabId = message.tabId;
       void handlePageCommand(message.command);
@@ -125,9 +149,9 @@ function initializeContentScript(): void {
     };
     sendResponse(response);
     return false;
-  });
+  };
 
-  chrome.runtime.onConnect.addListener((port) => {
+  const handleRuntimeConnect = (port: chrome.runtime.Port): void => {
     if (port.name !== TASK_PORT_NAME) return;
 
     if (activePort && activePort !== port) activePort.disconnect();
@@ -142,7 +166,22 @@ function initializeContentScript(): void {
       if (activePort !== port) return;
       activePort = undefined;
     });
-  });
+  };
+
+  const handlePreferenceChange: Parameters<typeof chrome.storage.onChanged.addListener>[0] = (
+    changes,
+    areaName,
+  ) => {
+    if (areaName !== "local" || !(TRANSLATION_COLOR_STORAGE_KEY in changes)) return;
+    translationColor = normalizeTranslationColor(
+      changes[TRANSLATION_COLOR_STORAGE_KEY]?.newValue,
+    );
+    if (document.getElementById(STYLE_ID)) applyTranslationColor(document, translationColor);
+  };
+
+  chrome.runtime.onMessage.addListener(handleRuntimeMessage);
+  chrome.runtime.onConnect.addListener(handleRuntimeConnect);
+  chrome.storage.onChanged.addListener(handlePreferenceChange);
 
   const observer = new MutationObserver((mutations) => {
     if (!activeTask || activeTask.status !== "translating") return;
@@ -162,6 +201,35 @@ function initializeContentScript(): void {
   observer.observe(document.documentElement, { characterData: true, childList: true, subtree: true });
   window.addEventListener("popstate", invalidateForNavigation);
   window.addEventListener("hashchange", invalidateForNavigation);
+
+  return dispose;
+
+  function dispose(): void {
+    try {
+      chrome.runtime.onMessage.removeListener(handleRuntimeMessage);
+      chrome.runtime.onConnect.removeListener(handleRuntimeConnect);
+      chrome.storage.onChanged.removeListener(handlePreferenceChange);
+    } catch {
+      // The previous extension context can already be invalid after a development reload.
+    }
+    observer.disconnect();
+    window.removeEventListener("popstate", invalidateForNavigation);
+    window.removeEventListener("hashchange", invalidateForNavigation);
+    window.clearTimeout(mutationTimer);
+    window.clearTimeout(taskNoticeTimer);
+    activePort?.disconnect();
+    selectionTranslation.dispose();
+    undoPage(false);
+  }
+
+  async function loadTranslationColor(): Promise<void> {
+    try {
+      const stored = await chrome.storage.local.get(TRANSLATION_COLOR_STORAGE_KEY);
+      translationColor = normalizeTranslationColor(stored[TRANSLATION_COLOR_STORAGE_KEY]);
+    } catch {
+      translationColor = undefined;
+    }
+  }
 
   async function handlePanelMessage(message: PanelToPageMessage): Promise<void> {
     if (message.type === "PANEL_HELLO") {
@@ -184,16 +252,13 @@ function initializeContentScript(): void {
       case "TRANSLATION_PAUSE":
         if (matchesActiveTask(message) && activeTask) {
           activeTask.status = "paused";
+          translationController?.abort();
           sendPageState();
         }
         break;
       case "TRANSLATION_CANCEL":
         if (matchesActiveTask(message) && activeTask) {
-          activeTask.status = "cancelled";
-          for (const state of activeTask.segments.values()) {
-            if (state.status === "queued" || state.status === "sent") state.status = "cancelled";
-          }
-          sendPageState();
+          cancelTask();
         }
         break;
       case "TRANSLATION_RESULT":
@@ -202,6 +267,7 @@ function initializeContentScript(): void {
       case "TASK_COMPLETE":
         if (matchesActiveTask(message) && activeTask?.status === "translating") {
           activeTask.status = "completed";
+          destroyPageModels();
           sendPageState();
         }
         break;
@@ -209,6 +275,7 @@ function initializeContentScript(): void {
         if (matchesActiveTask(message) && activeTask) {
           activeTask.status = "failed";
           sendTaskError(message.errorCode);
+          destroyPageModels();
           sendPageState();
         }
         break;
@@ -248,19 +315,14 @@ function initializeContentScript(): void {
       case PANEL_COMMANDS.togglePause:
         if (activeTask?.status === "translating") {
           activeTask.status = "paused";
+          translationController?.abort();
           sendPageState();
         } else if (activeTask?.status === "paused") {
           await resumeTask(identity());
         }
         break;
       case PANEL_COMMANDS.cancelTranslation:
-        if (activeTask) {
-          activeTask.status = "cancelled";
-          for (const state of activeTask.segments.values()) {
-            if (state.status === "queued" || state.status === "sent") state.status = "cancelled";
-          }
-          sendPageState();
-        }
+        if (activeTask) cancelTask();
         break;
       case PANEL_COMMANDS.undoTranslation:
         undoPage();
@@ -278,6 +340,7 @@ function initializeContentScript(): void {
   }
 
   async function startTask(message: Extract<PanelToPageMessage, { type: "PAGE_COLLECT" }>): Promise<void> {
+    await preferencesReady;
     if (activeTask?.taskId !== message.taskId) undoPage(false);
 
     activeTask = {
@@ -289,15 +352,35 @@ function initializeContentScript(): void {
       segments: new Map(),
     };
     applyDisplayMode(document, message.mode);
+    applyTranslationColor(document, translationColor);
     sendPageState();
 
     await discoverSegments();
     if (!matchesActiveTask(message) || !activeTask) return;
 
-    activeTask.status = "translating";
-    sendCollection(Array.from(activeTask.segments.values()));
-    sendPendingSegments();
+    if (activeTask.segments.size === 0) {
+      activeTask.status = "completed";
+      sendPageState();
+      return;
+    }
+
+    activeTask.status = "preparing";
     sendPageState();
+    try {
+      const approved = await preparePageModels();
+      if (!matchesActiveTask(message) || !activeTask) return;
+      if (!approved) {
+        activeTask.status = "completed";
+        destroyPageModels();
+        sendPageState();
+        return;
+      }
+      activeTask.status = "translating";
+      sendPageState();
+      await processPendingSegments();
+    } catch (error) {
+      failActiveTask(error);
+    }
   }
 
   async function resumeTask(message: TaskIdentity): Promise<void> {
@@ -310,10 +393,91 @@ function initializeContentScript(): void {
     for (const state of activeTask.segments.values()) {
       if (state.status === "sent" || state.status === "cancelled") state.status = "queued";
     }
-    activeTask.status = "translating";
-    sendCollection(Array.from(activeTask.segments.values()).filter((state) => state.status !== "translated"));
-    sendPendingSegments();
-    sendPageState();
+    try {
+      if (!pageTranslator) {
+        activeTask.status = "preparing";
+        sendPageState();
+        const approved = await preparePageModels();
+        if (!matchesActiveTask(message) || !activeTask) return;
+        if (!approved) {
+          activeTask.status = "completed";
+          destroyPageModels();
+          sendPageState();
+          return;
+        }
+      }
+      activeTask.status = "translating";
+      sendPageState();
+      await processPendingSegments();
+    } catch (error) {
+      failActiveTask(error);
+    }
+  }
+
+  async function preparePageModels(): Promise<boolean> {
+    if (!activeTask) return false;
+    if (pageTranslator) return true;
+    if (!("Translator" in globalThis)) throw new PageTranslationError("API_UNSUPPORTED");
+
+    modelController?.abort();
+    const controller = new AbortController();
+    modelController = controller;
+    const states = Array.from(activeTask.segments.values()).sort(
+      (left, right) => left.input.priority - right.input.priority,
+    );
+    const sourceSample = states
+      .map((state) => state.input.sourceText)
+      .join("\n")
+      .slice(0, SAMPLE_LIMIT);
+    const declaredLanguage = preferredDeclaredLanguage(
+      states.map((state) => state.element),
+      document.documentElement.lang || undefined,
+    );
+
+    const availability = await Translator.availability({
+      sourceLanguage: SOURCE_LANGUAGE,
+      targetLanguage: TARGET_LANGUAGE,
+    });
+    if (availability === "unavailable") throw new PageTranslationError("PAIR_UNAVAILABLE");
+
+    const [translator, detector] = await Promise.all([
+      Translator.create({
+        sourceLanguage: SOURCE_LANGUAGE,
+        targetLanguage: TARGET_LANGUAGE,
+        signal: controller.signal,
+      }),
+      prepareDetector(controller.signal),
+    ]);
+    if (!activeTask || controller.signal.aborted) {
+      translator.destroy();
+      detector?.destroy();
+      throw new DOMException("Cancelled", "AbortError");
+    }
+    pageTranslator = translator;
+    pageDetector = detector;
+    modelController = undefined;
+
+    let sourceLanguage = languageBase(declaredLanguage);
+    if (pageDetector && sourceSample) {
+      try {
+        const [result] = await pageDetector.detect(sourceSample);
+        const detected = languageBase(result?.detectedLanguage);
+        if (detected && (result?.confidence ?? 0) >= DETECTION_CONFIDENCE) {
+          sourceLanguage = detected;
+        }
+      } catch {
+        // Fall back to a declared language, or the configured English source.
+      } finally {
+        pageDetector.destroy();
+        pageDetector = undefined;
+      }
+    }
+
+    if (sourceLanguage === "zh") return false;
+    if (sourceLanguage && sourceLanguage !== SOURCE_LANGUAGE) {
+      throw new PageTranslationError("SOURCE_LANGUAGE_UNSUPPORTED");
+    }
+    return true;
   }
 
   async function discoverSegments(): Promise<void> {
@@ -376,70 +540,75 @@ function initializeContentScript(): void {
     };
   }
 
-  function sendCollection(states: SegmentState[]): void {
-    if (!activeTask || trustedTabId === undefined) return;
-    const sorted = [...states].sort((left, right) => left.input.priority - right.input.priority);
-    const sourceSample = sorted
-      .map((state) => state.input.sourceText)
-      .join("\n")
-      .slice(0, SAMPLE_LIMIT);
-    postToEngine({
-      version: PROTOCOL_VERSION,
-      type: "PAGE_COLLECTION",
-      ...identity(),
-      declaredLanguage: preferredDeclaredLanguage(
-        sorted.map((state) => state.element),
-        document.documentElement.lang || undefined,
-      ),
-      sourceSample,
-      total: activeTask.segments.size,
-    });
-  }
-
-  function sendPendingSegments(): void {
-    if (!activeTask) return;
-    const pending = Array.from(activeTask.segments.values())
-      .filter((state) => state.status === "queued")
-      .sort((left, right) => left.input.priority - right.input.priority);
-    const batches = batchSegments(pending.map((state) => state.input));
-
-    if (batches.length === 0) {
-      postToEngine({
-        version: PROTOCOL_VERSION,
-        type: "PAGE_SEGMENTS",
-        ...identity(),
-        batchId: createId(),
-        segments: [],
-        done: true,
-      });
-      return;
-    }
-
-    batches.forEach((segments, index) => {
-      for (const segment of segments) {
-        const state = activeTask?.segments.get(segment.segmentId);
-        if (state) state.status = "sent";
-      }
-      postToEngine({
-        version: PROTOCOL_VERSION,
-        type: "PAGE_SEGMENTS",
-        ...identity(),
-        batchId: createId(),
-        segments,
-        done: index === batches.length - 1,
-      });
-    });
-  }
-
   async function sendNewSegments(): Promise<void> {
     if (!activeTask || activeTask.status !== "translating") return;
     await discoverSegments();
     if (!activeTask || activeTask.status !== "translating") return;
     const queued = Array.from(activeTask.segments.values()).filter((state) => state.status === "queued");
     if (queued.length === 0) return;
-    sendCollection(queued);
-    sendPendingSegments();
     sendPageState();
+    await processPendingSegments();
+  }
+
+  async function processPendingSegments(): Promise<void> {
+    if (processing || !activeTask || activeTask.status !== "translating" || !pageTranslator) return;
+    processing = true;
+
+    try {
+      while (activeTask?.status === "translating") {
+        const state = Array.from(activeTask.segments.values())
+          .filter((candidate) => candidate.status === "queued")
+          .sort((left, right) => left.input.priority - right.input.priority)[0];
+        if (!state) break;
+
+        state.status = "sent";
+        const controller = new AbortController();
+        translationController = controller;
+        try {
+          const translatedText = await translateText(
+            pageTranslator,
+            state.input.sourceText,
+            controller.signal,
+          );
+          applyResults([
+            {
+              segmentId: state.input.segmentId,
+              contentHash: state.input.contentHash,
+              status: "translated",
+              translatedText,
+            },
+          ]);
+        } catch (error) {
+          if (isAbortError(error)) {
+            if (state.status === "sent") state.status = "queued";
+            break;
+          }
+          applyResults([
+            {
+              segmentId: state.input.segmentId,
+              contentHash: state.input.contentHash,
+              status: "failed",
+              errorCode: errorCode(error),
+            },
+          ]);
+        } finally {
+          if (translationController === controller) translationController = undefined;
+        }
+      }
+
+      if (
+        activeTask?.status === "translating" &&
+        !Array.from(activeTask.segments.values()).some(
+          (state) => state.status === "queued" || state.status === "sent",
+        )
+      ) {
+        activeTask.status = "completed";
+        destroyPageModels();
+        sendPageState();
+      }
+    } finally {
+      processing = false;
+    }
   }
 
   function applyResults(results: SegmentResult[]): void {
@@ -477,7 +646,37 @@ function initializeContentScript(): void {
     );
   }
 
+  function cancelTask(): void {
+    if (!activeTask) return;
+    activeTask.status = "cancelled";
+    for (const state of activeTask.segments.values()) {
+      if (state.status === "queued" || state.status === "sent") state.status = "cancelled";
+    }
+    destroyPageModels();
+    sendPageState();
+  }
+
+  function failActiveTask(error: unknown): void {
+    if (!activeTask || isAbortError(error)) return;
+    activeTask.status = "failed";
+    sendTaskError(errorCode(error));
+    destroyPageModels();
+    sendPageState();
+  }
+
+  function destroyPageModels(): void {
+    modelController?.abort();
+    translationController?.abort();
+    pageDetector?.destroy();
+    pageTranslator?.destroy();
+    modelController = undefined;
+    translationController = undefined;
+    pageDetector = undefined;
+    pageTranslator = undefined;
+  }
+
   function undoPage(notify = true): void {
+    destroyPageModels();
     if (activeTask) {
       for (const state of activeTask.segments.values()) {
         state.translationNode?.remove();
@@ -531,7 +730,6 @@ function initializeContentScript(): void {
           progress: emptyProgress(),
         };
     postToPanel(message);
-    postToEngine(message);
     window.clearTimeout(taskNoticeTimer);
     renderTaskNotice(document, message.status, message.progress);
     if (message.status === "completed" || message.status === "cancelled") {
@@ -550,24 +748,14 @@ function initializeContentScript(): void {
       errorCode,
     };
     postToPanel(message);
-    postToEngine(message);
   }
 
   function postToPanel(message: PageToPanelMessage): void {
     try {
       activePort?.postMessage(message);
     } catch {
-      if (activeTask && activeTask.status === "translating") activeTask.status = "paused";
+      activePort = undefined;
     }
-  }
-
-  function postToEngine(message: PageToPanelMessage): void {
-    const envelope: EnginePageMessage = {
-      version: PROTOCOL_VERSION,
-      type: "ENGINE_PAGE_MESSAGE",
-      message,
-    };
-    void chrome.runtime.sendMessage(envelope).catch(() => undefined);
   }
 
   function matchesActiveTask(message: TaskIdentity): boolean {
@@ -641,6 +829,42 @@ function initializeContentScript(): void {
     if (translationCache.size <= CACHE_LIMIT) return;
     const oldestKey = translationCache.keys().next().value as string | undefined;
     if (oldestKey !== undefined) translationCache.delete(oldestKey);
+  }
+}
+
+async function prepareDetector(signal: AbortSignal): Promise<LanguageDetector | undefined> {
+  if (!("LanguageDetector" in globalThis)) return undefined;
+  try {
+    return await LanguageDetector.create({ signal });
+  } catch {
+    return undefined;
+  }
+}
+
+function languageBase(value: string | undefined): string | undefined {
+  return value?.trim().toLowerCase().split("-")[0] || undefined;
+}
+
+function errorCode(error: unknown): string {
+  if (error instanceof PageTranslationError) return error.code;
+  if (error instanceof DOMException) {
+    if (error.name === "NotAllowedError") return "USER_ACTIVATION_REQUIRED";
+    if (error.name === "NotSupportedError") return "PAIR_UNAVAILABLE";
+    if (error.name === "NetworkError") return "MODEL_DOWNLOAD_FAILED";
+    if (error.name === "QuotaExceededError") return "INPUT_TOO_LARGE";
+    if (error.name === "AbortError") return "TRANSLATION_CANCELLED";
+  }
+  return "UNKNOWN_ERROR";
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+class PageTranslationError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = "PageTranslationError";
   }
 }
 

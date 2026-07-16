@@ -54,4 +54,22 @@ describe("page text candidates", () => {
 
     expect(preferredDeclaredLanguage(post ? [post] : [], dom.window.document.documentElement.lang)).toBe("en");
   });
+
+  it("does not treat the X interface language as the article language", () => {
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html lang="zh-CN">
+        <body>
+          <div data-testid="longformRichTextComponent">
+            <div class="public-DraftStyleDefault-block">English article body</div>
+          </div>
+        </body>
+      </html>
+    `);
+    const block = dom.window.document.querySelector<HTMLElement>(".public-DraftStyleDefault-block");
+
+    expect(
+      preferredDeclaredLanguage(block ? [block] : [], dom.window.document.documentElement.lang),
+    ).toBeUndefined();
+  });
 });

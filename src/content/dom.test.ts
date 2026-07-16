@@ -2,6 +2,7 @@ import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 import {
   applyDisplayMode,
+  applyTranslationColor,
   clearTranslationUi,
   MODE_ATTRIBUTE,
   renderTaskNotice,
@@ -50,6 +51,16 @@ describe("safe translation rendering", () => {
     expect(source.hasAttribute(SOURCE_ATTRIBUTE)).toBe(false);
     expect(dom.window.document.documentElement.hasAttribute(MODE_ATTRIBUTE)).toBe(false);
     expect(dom.window.document.getElementById(STYLE_ID)).toBeNull();
+  });
+
+  it("applies a validated custom translation color", () => {
+    const dom = new JSDOM("<!doctype html><p>Original</p>");
+
+    applyTranslationColor(dom.window.document, "#3A7BC8");
+
+    expect(dom.window.document.getElementById(STYLE_ID)?.textContent).toContain(
+      "color: #3a7bc8 !important",
+    );
   });
 
   it("renders a non-layout-blocking task notice and removes it when idle", () => {

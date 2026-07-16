@@ -13,6 +13,11 @@ import {
 } from "../shared/protocol";
 import { PANEL_COMMANDS, type PanelCommand } from "../shared/commands";
 import type { PageCommandMessage } from "../shared/engine-protocol";
+import {
+  DEFAULT_TRANSLATION_COLOR,
+  normalizeTranslationColor,
+  TRANSLATION_COLOR_STORAGE_KEY,
+} from "../shared/preferences";
 import { injectionErrorCode } from "./access";
 
 const statusElement = requiredElement<HTMLParagraphElement>("status");
@@ -30,6 +35,9 @@ const undoButton = requiredElement<HTMLButtonElement>("undo");
 const totalMetric = requiredElement<HTMLElement>("metric-total");
 const completedMetric = requiredElement<HTMLElement>("metric-completed");
 const failedMetric = requiredElement<HTMLElement>("metric-failed");
+const translationColorInput = requiredElement<HTMLInputElement>("translation-color");
+const translationColorValue = requiredElement<HTMLOutputElement>("translation-color-value");
+const resetTranslationColorButton = requiredElement<HTMLButtonElement>("reset-translation-color");
 const configureShortcutsButton = requiredElement<HTMLButtonElement>("configure-shortcuts");
 const modeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-mode]"));
 const shortcutRows = Array.from(document.querySelectorAll<HTMLElement>("[data-command]"));
@@ -43,11 +51,15 @@ let displayMode: DisplayMode = "bilingual";
 let progress: TaskProgress = emptyProgress();
 let connectionInFlight: Promise<void> | undefined;
 let reconnectRequested = false;
+let reconnectTimer: number | undefined;
+let translationColor: string | undefined;
 
 startButton.addEventListener("click", () => void startOrResumeTranslation());
 pauseButton.addEventListener("click", pauseTranslation);
 cancelButton.addEventListener("click", cancelTranslation);
 undoButton.addEventListener("click", undoTranslation);
+translationColorInput.addEventListener("input", () => void saveTranslationColor());
+resetTranslationColorButton.addEventListener("click", () => void resetTranslationColor());
 configureShortcutsButton.addEventListener("click", () => void openShortcutSettings());
 
 for (const button of modeButtons) {
@@ -62,6 +74,45 @@ for (const button of modeButtons) {
 chrome.tabs.onActivated.addListener(scheduleConnection);
 scheduleConnection();
 void renderShortcutHints();
+void loadTranslationColorPreference();
+
+async function loadTranslationColorPreference(): Promise<void> {
+  try {
+    const stored = await chrome.storage.local.get(TRANSLATION_COLOR_STORAGE_KEY);
+    translationColor = normalizeTranslationColor(stored[TRANSLATION_COLOR_STORAGE_KEY]);
+  } catch {
+    translationColor = undefined;
+  }
+  renderTranslationColor();
+}
+
+async function saveTranslationColor(): Promise<void> {
+  const color = normalizeTranslationColor(translationColorInput.value);
+  if (!color) return;
+  translationColor = color;
+  renderTranslationColor();
+  try {
+    await chrome.storage.local.set({ [TRANSLATION_COLOR_STORAGE_KEY]: color });
+  } catch {
+    setStatus("无法保存译文颜色，请重新加载扩展后重试。", "error");
+  }
+}
+
+async function resetTranslationColor(): Promise<void> {
+  translationColor = undefined;
+  renderTranslationColor();
+  try {
+    await chrome.storage.local.remove(TRANSLATION_COLOR_STORAGE_KEY);
+  } catch {
+    setStatus("无法恢复默认颜色，请重新加载扩展后重试。", "error");
+  }
+}
+
+function renderTranslationColor(): void {
+  translationColorInput.value = translationColor ?? DEFAULT_TRANSLATION_COLOR;
+  translationColorValue.textContent = translationColor?.toUpperCase() ?? "自动";
+  resetTranslationColorButton.disabled = translationColor === undefined;
+}
 
 async function renderShortcutHints(): Promise<void> {
   try {
@@ -92,6 +143,8 @@ async function openShortcutSettings(): Promise<void> {
 }
 
 function scheduleConnection(): void {
+  window.clearTimeout(reconnectTimer);
+  reconnectTimer = undefined;
   if (connectionInFlight) {
     reconnectRequested = true;
     return;
@@ -124,6 +177,7 @@ async function connectToActiveTab(): Promise<void> {
       activePort = undefined;
       setStatus("控制面板已断开，页面翻译不会因此暂停。", "neutral");
       renderControls();
+      reconnectTimer = window.setTimeout(scheduleConnection, 350);
     });
     postToPage({ version: PROTOCOL_VERSION, type: "PANEL_HELLO", tabId: tab.id });
   } catch (error) {

@@ -71,9 +71,9 @@ describe("extension manifest", () => {
     expect(manifest.permissions).toEqual([
       "activeTab",
       "contextMenus",
-      "offscreen",
       "scripting",
       "sidePanel",
+      "storage",
     ]);
     expect(manifest.version).toBe(packageJson.version);
   });

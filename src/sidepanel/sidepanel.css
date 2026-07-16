@@ -285,6 +285,7 @@ progress::-webkit-progress-value {
 
 .button,
 .segmented button,
+.color-reset,
 .shortcut-configure,
 .undo-button {
   border: 1px solid var(--border);
@@ -344,6 +345,7 @@ progress::-webkit-progress-value {
 
 .button:active:not(:disabled),
 .segmented button:active,
+.color-reset:active:not(:disabled),
 .shortcut-configure:active:not(:disabled),
 .undo-button:active:not(:disabled) {
   transform: translateY(0) scale(0.99);
@@ -351,6 +353,8 @@ progress::-webkit-progress-value {
 
 .button:focus-visible,
 .segmented button:focus-visible,
+.color-picker:focus-within,
+.color-reset:focus-visible,
 .shortcut-configure:focus-visible,
 .undo-button:focus-visible,
 summary:focus-visible {
@@ -359,6 +363,7 @@ summary:focus-visible {
 }
 
 .button:disabled,
+.color-reset:disabled,
 .shortcut-configure:disabled,
 .undo-button:disabled {
   cursor: not-allowed;
@@ -411,6 +416,95 @@ summary:focus-visible {
   background: var(--primary-soft);
   color: var(--primary);
   box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.color-setting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 14px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+}
+
+.color-copy {
+  min-width: 0;
+}
+
+.color-copy h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.color-copy p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.color-controls {
+  display: grid;
+  width: max-content;
+  grid-template-columns: 34px 58px max-content;
+  align-items: center;
+  gap: 7px;
+}
+
+.color-picker {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.color-picker input {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.color-picker input::-webkit-color-swatch-wrapper {
+  padding: 5px;
+}
+
+.color-picker input::-webkit-color-swatch {
+  border: 0;
+  border-radius: 7px;
+}
+
+#translation-color-value {
+  display: block;
+  width: 58px;
+  color: var(--muted-strong);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.color-reset {
+  min-height: 32px;
+  border-radius: 9px;
+  padding: 5px 8px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 680;
+}
+
+.color-reset:hover:not(:disabled) {
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
 }
 
 dl {
@@ -657,6 +751,11 @@ kbd {
 
   .button {
     padding-inline: 12px;
+  }
+
+  .color-setting {
+    align-items: flex-start;
+    grid-template-columns: 1fr;
   }
 
   dl div {

@@ -1,7 +1,5 @@
 import {
-  isEngineResultMessage,
   isPageCommandMessage,
-  OFFSCREEN_DOCUMENT_PATH,
   type PageCommandMessage,
 } from "../shared/engine-protocol";
 import {
@@ -18,7 +16,6 @@ import {
 
 const SELECTION_MENU_ID = "benyi-translate-selection";
 const OPEN_PANEL_MENU_ID = "benyi-open-control-panel";
-let creatingOffscreenDocument: Promise<void> | undefined;
 
 async function configureSidePanel(): Promise<void> {
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
@@ -39,7 +36,11 @@ async function configureContextMenu(): Promise<void> {
 }
 
 chrome.action.onClicked.addListener((tab) => {
-  if (tab.id !== undefined) void runPageCommand(tab.id, PANEL_COMMANDS.translatePage);
+  if (tab.id !== undefined) {
+    void runPageCommand(tab.id, PANEL_COMMANDS.translatePage).catch((error: unknown) => {
+      console.warn("Benyi could not start page translation", error);
+    });
+  }
 });
 
 chrome.commands.onCommand.addListener((command, tab) => {
@@ -48,7 +49,11 @@ chrome.commands.onCommand.addListener((command, tab) => {
     void prepareSelectionTranslation(tab.id);
     return;
   }
-  if (isPanelCommand(command)) void runPageCommand(tab.id, command);
+  if (isPanelCommand(command)) {
+    void runPageCommand(tab.id, command).catch((error: unknown) => {
+      console.warn("Benyi could not run the page command", error);
+    });
+  }
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -61,15 +66,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
-  if (isEngineResultMessage(message)) {
-    if (sender.url !== chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH)) return false;
-    void chrome.tabs
-      .sendMessage(message.tabId, message.message)
-      .then(() => sendResponse({ delivered: true }))
-      .catch(() => sendResponse({ delivered: false }));
-    return true;
-  }
-
   if (isPageCommandMessage(message)) {
     if (sender.id !== chrome.runtime.id || sender.tab !== undefined) return false;
     void runPageCommand(message.tabId, message.command)
@@ -81,9 +77,6 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
 });
 
 async function runPageCommand(tabId: number, command: PanelCommand): Promise<void> {
-  if (command === PANEL_COMMANDS.translatePage || command === PANEL_COMMANDS.togglePause) {
-    await ensureOffscreenDocument();
-  }
   await ensureContentScript(tabId);
   const message: PageCommandMessage = {
     version: PROTOCOL_VERSION,
@@ -113,28 +106,6 @@ async function ensureContentScript(tabId: number): Promise<void> {
     target: { tabId },
     files: ["content/content-script.js"],
   });
-}
-
-async function ensureOffscreenDocument(): Promise<void> {
-  const documentUrl = chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH);
-  const contexts = await chrome.runtime.getContexts({
-    contextTypes: ["OFFSCREEN_DOCUMENT"],
-    documentUrls: [documentUrl],
-  });
-  if (contexts.length > 0) return;
-
-  if (!creatingOffscreenDocument) {
-    creatingOffscreenDocument = chrome.offscreen
-      .createDocument({
-        url: OFFSCREEN_DOCUMENT_PATH,
-        reasons: ["DOM_PARSER"],
-        justification: "运行仅支持文档上下文的 Chrome 本地 Translator API，不显示额外界面。",
-      })
-      .finally(() => {
-        creatingOffscreenDocument = undefined;
-      });
-  }
-  await creatingOffscreenDocument;
 }
 
 chrome.runtime.onInstalled.addListener(() => {

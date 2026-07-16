@@ -1,4 +1,9 @@
 import type { DisplayMode, TaskProgress, TaskStatus } from "../shared/protocol";
+import {
+  DEFAULT_DARK_TRANSLATION_COLOR,
+  DEFAULT_TRANSLATION_COLOR,
+  normalizeTranslationColor,
+} from "../shared/preferences";
 
 export const STYLE_ID = "benyi-translation-style";
 export const SOURCE_ATTRIBUTE = "data-benyi-source";
@@ -28,6 +33,12 @@ export function renderTranslationNode(
 export function applyDisplayMode(document: Document, mode: DisplayMode): void {
   ensureTranslationStyle(document);
   document.documentElement.setAttribute(MODE_ATTRIBUTE, mode);
+}
+
+export function applyTranslationColor(document: Document, color: string | undefined): void {
+  const normalizedColor = normalizeTranslationColor(color);
+  document.getElementById(STYLE_ID)?.remove();
+  ensureTranslationStyle(document, normalizedColor);
 }
 
 export function clearTranslationUi(document: Document): void {
@@ -122,8 +133,10 @@ export function taskNoticeText(status: TaskStatus, progress: TaskProgress): stri
   );
 }
 
-export function ensureTranslationStyle(document: Document): void {
+export function ensureTranslationStyle(document: Document, customColor?: string): void {
   if (document.getElementById(STYLE_ID)) return;
+  const lightColor = customColor ?? DEFAULT_TRANSLATION_COLOR;
+  const darkColor = customColor ?? DEFAULT_DARK_TRANSLATION_COLOR;
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
@@ -133,7 +146,7 @@ export function ensureTranslationStyle(document: Document): void {
       padding: 0 !important;
       border: 0 !important;
       background: transparent !important;
-      color: #24683a !important;
+      color: ${lightColor} !important;
       font: inherit !important;
       font-size: 0.96em !important;
       font-style: normal !important;
@@ -147,7 +160,7 @@ export function ensureTranslationStyle(document: Document): void {
     html[data-benyi-mode="original"] [data-benyi-translation] { display: none !important; }
     html[data-benyi-mode="translation"] [data-benyi-source] { display: none !important; }
     @media (prefers-color-scheme: dark) {
-      [data-benyi-translation] { color: #72c68b !important; }
+      [data-benyi-translation] { color: ${darkColor} !important; }
     }
   `;
   (document.head ?? document.documentElement).append(style);
