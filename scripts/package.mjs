@@ -19,10 +19,7 @@ const archive = zipSync(files, { level: 9 });
 const checksum = createHash("sha256").update(archive).digest("hex");
 
 await mkdir(output, { recursive: true });
-await Promise.all([
-  rm(archivePath, { force: true }),
-  rm(checksumPath, { force: true }),
-]);
+await Promise.all([rm(archivePath, { force: true }), rm(checksumPath, { force: true })]);
 await Promise.all([
   writeFile(archivePath, archive),
   writeFile(checksumPath, `${checksum}  ${archiveName}\n`),

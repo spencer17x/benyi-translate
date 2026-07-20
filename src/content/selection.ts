@@ -12,8 +12,7 @@ const VIEWPORT_MARGIN = 8;
 type SelectionIssue = "empty" | "already-chinese" | "too-long";
 
 export type SelectionTextResult =
-  | { ok: true; text: string }
-  | { ok: false; issue: SelectionIssue; text: string };
+  { ok: true; text: string } | { ok: false; issue: SelectionIssue; text: string };
 
 export type SelectionTranslationController = {
   translate(sourceText?: string): Promise<void>;
@@ -52,11 +51,7 @@ export function positionPopover(
   viewportHeight: number,
 ): { left: number; top: number } {
   const maxLeft = Math.max(VIEWPORT_MARGIN, viewportWidth - popoverWidth - VIEWPORT_MARGIN);
-  const left = clamp(
-    rect.left + rect.width / 2 - popoverWidth / 2,
-    VIEWPORT_MARGIN,
-    maxLeft,
-  );
+  const left = clamp(rect.left + rect.width / 2 - popoverWidth / 2, VIEWPORT_MARGIN, maxLeft);
   const below = rect.bottom + POPOVER_GAP;
   const above = rect.top - popoverHeight - POPOVER_GAP;
   const top =
@@ -417,7 +412,8 @@ function selectionIssueMessage(issue: SelectionIssue): string {
 
 function selectionErrorMessage(error: unknown): string {
   if (error instanceof SelectionTranslationError) {
-    if (error.code === "API_UNSUPPORTED") return "当前 Chrome 不支持本地 Translator API，请升级浏览器。";
+    if (error.code === "API_UNSUPPORTED")
+      return "当前 Chrome 不支持本地 Translator API，请升级浏览器。";
     if (error.code === "PAIR_UNAVAILABLE") return "当前设备暂不支持英语到简体中文的本地翻译。";
   }
   if (error instanceof DOMException) {

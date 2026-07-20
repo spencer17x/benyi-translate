@@ -89,7 +89,7 @@ pnpm install
 pnpm run check
 ```
 
-`pnpm run check` 会依次执行 TypeScript 类型检查、单元测试和扩展构建，构建产物位于 `dist/`。
+`pnpm run check` 会依次执行格式检查、TypeScript 类型检查、单元测试和扩展构建，构建产物位于 `dist/`。首次安装依赖时也会自动启用项目的 Git hooks；具体规则见[贡献指南](CONTRIBUTING.md)。
 
 生成与 GitHub Release 相同的 ZIP 和 SHA-256 文件：
 

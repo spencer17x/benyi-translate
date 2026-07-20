@@ -10,8 +10,12 @@ import {
 
 describe("protocol validation", () => {
   it("accepts an action-ready notification with a valid tab id", () => {
-    expect(isActionReadyMessage({ version: PROTOCOL_VERSION, type: "ACTION_READY", tabId: 7 })).toBe(true);
-    expect(isActionReadyMessage({ version: PROTOCOL_VERSION, type: "ACTION_READY", tabId: -1 })).toBe(false);
+    expect(
+      isActionReadyMessage({ version: PROTOCOL_VERSION, type: "ACTION_READY", tabId: 7 }),
+    ).toBe(true);
+    expect(
+      isActionReadyMessage({ version: PROTOCOL_VERSION, type: "ACTION_READY", tabId: -1 }),
+    ).toBe(false);
   });
 
   it("accepts selection translation requests and rejects malformed text", () => {
@@ -39,9 +43,9 @@ describe("protocol validation", () => {
   });
 
   it("accepts a valid panel hello", () => {
-    expect(
-      isPanelToPageMessage({ version: PROTOCOL_VERSION, type: "PANEL_HELLO", tabId: 7 }),
-    ).toBe(true);
+    expect(isPanelToPageMessage({ version: PROTOCOL_VERSION, type: "PANEL_HELLO", tabId: 7 })).toBe(
+      true,
+    );
   });
 
   it("rejects a task message with an invalid tab id", () => {

@@ -291,7 +291,8 @@ async function runPageCommand(command: PanelCommand): Promise<void> {
     tabId: activeTabId,
     command,
   };
-  const response = (await chrome.runtime.sendMessage(message)) as { accepted?: boolean } | undefined;
+  const response = (await chrome.runtime.sendMessage(message)) as
+    { accepted?: boolean } | undefined;
   if (!response?.accepted) throw new Error("Page command was rejected");
 }
 
@@ -345,9 +346,7 @@ function renderProgress(): void {
   progressElement.value = Math.min(handled, progress.total);
   progressLabel.textContent = `${handled} / ${progress.total}`;
   progressSummary.textContent =
-    progress.total > 0
-      ? `已处理 ${handled} 个段落，共 ${progress.total} 个`
-      : "正在准备页面正文…";
+    progress.total > 0 ? `已处理 ${handled} 个段落，共 ${progress.total} 个` : "正在准备页面正文…";
   totalMetric.textContent = String(progress.total);
   completedMetric.textContent = String(progress.completed);
   failedMetric.textContent = String(progress.failed);
@@ -355,7 +354,8 @@ function renderProgress(): void {
 
 function renderControls(): void {
   const connected = activePort !== undefined && pageId !== undefined;
-  const busy = taskStatus === "collecting" || taskStatus === "preparing" || taskStatus === "translating";
+  const busy =
+    taskStatus === "collecting" || taskStatus === "preparing" || taskStatus === "translating";
   translationCard.dataset.taskStatus = taskStatus;
   translationCard.setAttribute("aria-busy", String(busy));
   startButton.disabled = !connected || busy;

@@ -17,17 +17,9 @@ import {
 } from "../shared/protocol";
 import { isPageCommandMessage } from "../shared/engine-protocol";
 import { PANEL_COMMANDS } from "../shared/commands";
-import {
-  hashText,
-  isProbablyChinese,
-  normalizeText,
-  shouldSkipText,
-} from "../shared/text";
+import { hashText, isProbablyChinese, normalizeText, shouldSkipText } from "../shared/text";
 import { createId } from "../shared/id";
-import {
-  normalizeTranslationColor,
-  TRANSLATION_COLOR_STORAGE_KEY,
-} from "../shared/preferences";
+import { normalizeTranslationColor, TRANSLATION_COLOR_STORAGE_KEY } from "../shared/preferences";
 import { translateText } from "../translation/translate";
 import { candidateSelector, preferredDeclaredLanguage } from "./candidates";
 import {
@@ -43,9 +35,7 @@ import {
 import { initializeSelectionTranslation } from "./selection";
 
 declare global {
-  var __benyiContentScriptInstance:
-    | { buildId: string; dispose(): void }
-    | undefined;
+  var __benyiContentScriptInstance: { buildId: string; dispose(): void } | undefined;
 }
 
 declare const __BENYI_BUILD_ID__: string;
@@ -173,9 +163,7 @@ function initializeContentScript(): () => void {
     areaName,
   ) => {
     if (areaName !== "local" || !(TRANSLATION_COLOR_STORAGE_KEY in changes)) return;
-    translationColor = normalizeTranslationColor(
-      changes[TRANSLATION_COLOR_STORAGE_KEY]?.newValue,
-    );
+    translationColor = normalizeTranslationColor(changes[TRANSLATION_COLOR_STORAGE_KEY]?.newValue);
     if (document.getElementById(STYLE_ID)) applyTranslationColor(document, translationColor);
   };
 
@@ -198,7 +186,11 @@ function initializeContentScript(): () => void {
     }, 250);
   });
 
-  observer.observe(document.documentElement, { characterData: true, childList: true, subtree: true });
+  observer.observe(document.documentElement, {
+    characterData: true,
+    childList: true,
+    subtree: true,
+  });
   window.addEventListener("popstate", invalidateForNavigation);
   window.addEventListener("hashchange", invalidateForNavigation);
 
@@ -292,7 +284,9 @@ function initializeContentScript(): () => void {
     }
   }
 
-  async function handlePageCommand(command: (typeof PANEL_COMMANDS)[keyof typeof PANEL_COMMANDS]): Promise<void> {
+  async function handlePageCommand(
+    command: (typeof PANEL_COMMANDS)[keyof typeof PANEL_COMMANDS],
+  ): Promise<void> {
     if (trustedTabId === undefined) return;
 
     switch (command) {
@@ -339,7 +333,9 @@ function initializeContentScript(): () => void {
     }
   }
 
-  async function startTask(message: Extract<PanelToPageMessage, { type: "PAGE_COLLECT" }>): Promise<void> {
+  async function startTask(
+    message: Extract<PanelToPageMessage, { type: "PAGE_COLLECT" }>,
+  ): Promise<void> {
     await preferencesReady;
     if (activeTask?.taskId !== message.taskId) undoPage(false);
 
@@ -499,7 +495,13 @@ function initializeContentScript(): () => void {
         if (existing.input.contentHash !== contentHash) {
           existing.translationNode?.remove();
           existing.translationNode = undefined;
-          existing.input = createSegmentInput(existing.input.segmentId, sourceText, contentHash, element, index);
+          existing.input = createSegmentInput(
+            existing.input.segmentId,
+            sourceText,
+            contentHash,
+            element,
+            index,
+          );
           existing.status = "queued";
         }
       } else {
@@ -544,7 +546,9 @@ function initializeContentScript(): () => void {
     if (!activeTask || activeTask.status !== "translating") return;
     await discoverSegments();
     if (!activeTask || activeTask.status !== "translating") return;
-    const queued = Array.from(activeTask.segments.values()).filter((state) => state.status === "queued");
+    const queued = Array.from(activeTask.segments.values()).filter(
+      (state) => state.status === "queued",
+    );
     if (queued.length === 0) return;
     sendPageState();
     await processPendingSegments();
@@ -806,7 +810,10 @@ function initializeContentScript(): () => void {
   }
 
   function isExtensionNode(node: Node): boolean {
-    return node instanceof Element && Boolean(node.closest("[data-benyi-translation], [data-benyi-root]"));
+    return (
+      node instanceof Element &&
+      Boolean(node.closest("[data-benyi-translation], [data-benyi-root]"))
+    );
   }
 
   function cacheKey(input: SegmentInput): string {

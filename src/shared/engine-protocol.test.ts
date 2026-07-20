@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PANEL_COMMANDS } from "./commands";
-import {
-  isPageCommandMessage,
-} from "./engine-protocol";
+import { isPageCommandMessage } from "./engine-protocol";
 import { PROTOCOL_VERSION } from "./protocol";
 
 describe("background translation protocol", () => {

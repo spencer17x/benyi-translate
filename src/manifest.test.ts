@@ -13,10 +13,13 @@ describe("extension manifest", () => {
         default_title?: string;
         default_icon?: Record<string, string>;
       };
-      commands?: Record<string, {
-        description?: string;
-        suggested_key?: Record<string, string>;
-      }>;
+      commands?: Record<
+        string,
+        {
+          description?: string;
+          suggested_key?: Record<string, string>;
+        }
+      >;
       icons?: Record<string, string>;
       permissions?: string[];
       version?: string;

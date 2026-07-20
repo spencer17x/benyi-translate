@@ -10,9 +10,7 @@ export function normalizeText(value: string): string {
 export function shouldSkipText(value: string): boolean {
   const normalized = normalizeText(value);
   return (
-    normalized.length < 2 ||
-    URL_ONLY.test(normalized) ||
-    NO_LETTERS_OR_NUMBERS.test(normalized)
+    normalized.length < 2 || URL_ONLY.test(normalized) || NO_LETTERS_OR_NUMBERS.test(normalized)
   );
 }
 

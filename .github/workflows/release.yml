@@ -18,6 +18,9 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: true
     steps:
       - name: Update release pull request
         id: release
@@ -31,6 +34,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ steps.release.outputs.sha }}
+          persist-credentials: false
 
       - name: Set up pnpm
         if: ${{ steps.release.outputs.release_created }}
@@ -42,6 +46,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         if: ${{ steps.release.outputs.release_created }}

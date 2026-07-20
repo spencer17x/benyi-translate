@@ -1,7 +1,4 @@
-import {
-  isPageCommandMessage,
-  type PageCommandMessage,
-} from "../shared/engine-protocol";
+import { isPageCommandMessage, type PageCommandMessage } from "../shared/engine-protocol";
 import {
   isPanelCommand,
   isSelectionCommand,

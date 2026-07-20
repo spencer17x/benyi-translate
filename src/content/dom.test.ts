@@ -19,7 +19,12 @@ describe("safe translation rendering", () => {
     const source = dom.window.document.getElementById("source") as HTMLElement;
     const maliciousText = '<img src=x onerror="alert(1)">译文';
 
-    const translation = renderTranslationNode(dom.window.document, source, "segment-1", maliciousText);
+    const translation = renderTranslationNode(
+      dom.window.document,
+      source,
+      "segment-1",
+      maliciousText,
+    );
 
     expect(translation.textContent).toBe(maliciousText);
     expect(translation.querySelector("img")).toBeNull();

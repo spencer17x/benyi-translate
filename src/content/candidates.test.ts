@@ -14,8 +14,12 @@ describe("page text candidates", () => {
     );
 
     expect(xDom.window.document.querySelectorAll(candidateSelector("x.com"))).toHaveLength(1);
-    expect(regularDom.window.document.querySelectorAll(candidateSelector("example.com"))).toHaveLength(1);
-    expect(regularDom.window.document.querySelector(candidateSelector("example.com"))?.tagName).toBe("P");
+    expect(
+      regularDom.window.document.querySelectorAll(candidateSelector("example.com")),
+    ).toHaveLength(1);
+    expect(
+      regularDom.window.document.querySelector(candidateSelector("example.com"))?.tagName,
+    ).toBe("P");
   });
 
   it("includes X article body blocks without duplicating list items", () => {
@@ -52,7 +56,9 @@ describe("page text candidates", () => {
     );
     const post = dom.window.document.querySelector<HTMLElement>('[data-testid="tweetText"]');
 
-    expect(preferredDeclaredLanguage(post ? [post] : [], dom.window.document.documentElement.lang)).toBe("en");
+    expect(
+      preferredDeclaredLanguage(post ? [post] : [], dom.window.document.documentElement.lang),
+    ).toBe("en");
   });
 
   it("does not treat the X interface language as the article language", () => {

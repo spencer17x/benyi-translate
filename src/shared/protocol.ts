@@ -211,7 +211,9 @@ export function isDisplayMode(value: unknown): value is DisplayMode {
   return value === "original" || value === "bilingual" || value === "translation";
 }
 
-function isProtocolRecord(value: unknown): value is Record<string, unknown> & { version: 1; type: string } {
+function isProtocolRecord(
+  value: unknown,
+): value is Record<string, unknown> & { version: 1; type: string } {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -220,7 +222,9 @@ function isProtocolRecord(value: unknown): value is Record<string, unknown> & { 
   );
 }
 
-function hasTaskIdentity(value: Record<string, unknown>): value is Record<string, unknown> & TaskIdentity {
+function hasTaskIdentity(
+  value: Record<string, unknown>,
+): value is Record<string, unknown> & TaskIdentity {
   return (
     isSafeTabId(value.tabId) &&
     typeof value.pageId === "string" &&
@@ -253,7 +257,10 @@ function isTaskProgress(value: unknown): value is TaskProgress {
   if (typeof value !== "object" || value === null) return false;
   const progress = value as Record<string, unknown>;
   const hasValidCounts = ["total", "completed", "failed", "skipped"].every(
-    (key) => typeof progress[key] === "number" && Number.isSafeInteger(progress[key]) && progress[key] >= 0,
+    (key) =>
+      typeof progress[key] === "number" &&
+      Number.isSafeInteger(progress[key]) &&
+      progress[key] >= 0,
   );
   if (!hasValidCounts) return false;
   return (
@@ -289,9 +296,12 @@ function isSegmentResult(value: unknown): value is SegmentResult {
     result.segmentId.length <= 100 &&
     typeof result.contentHash === "string" &&
     result.contentHash.length <= 100 &&
-    (result.status === "translated" || result.status === "failed" || result.status === "cancelled") &&
+    (result.status === "translated" ||
+      result.status === "failed" ||
+      result.status === "cancelled") &&
     (result.translatedText === undefined ||
-      (typeof result.translatedText === "string" && result.translatedText.length <= MAX_BATCH_CHARACTERS * 2)) &&
+      (typeof result.translatedText === "string" &&
+        result.translatedText.length <= MAX_BATCH_CHARACTERS * 2)) &&
     (result.errorCode === undefined ||
       (typeof result.errorCode === "string" && result.errorCode.length <= 100))
   );

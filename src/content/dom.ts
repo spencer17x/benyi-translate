@@ -42,7 +42,9 @@ export function applyTranslationColor(document: Document, color: string | undefi
 }
 
 export function clearTranslationUi(document: Document): void {
-  document.querySelectorAll<HTMLElement>("[data-benyi-translation]").forEach((node) => node.remove());
+  document
+    .querySelectorAll<HTMLElement>("[data-benyi-translation]")
+    .forEach((node) => node.remove());
   document.querySelectorAll<HTMLElement>("[data-benyi-source]").forEach((node) => {
     node.removeAttribute(SOURCE_ATTRIBUTE);
   });
@@ -116,21 +118,19 @@ function updateTaskNotice(target: HTMLElement, status: TaskStatus, progress: Tas
 
 export function taskNoticeText(status: TaskStatus, progress: TaskProgress): string {
   const handled = progress.completed + progress.failed + progress.skipped;
-  return (
-    status === "collecting" || status === "preparing"
-      ? "本译正在准备本地翻译…"
-      : status === "translating"
-        ? progress.total > 0
-          ? `本译正在翻译 ${handled} / ${progress.total}`
-          : "本译正在翻译当前页面…"
-        : status === "paused"
-          ? "本译翻译已暂停"
-          : status === "cancelled"
-            ? "本译翻译已取消"
-            : status === "completed"
-              ? "本译翻译完成"
-              : "本译翻译未完成，请重试"
-  );
+  return status === "collecting" || status === "preparing"
+    ? "本译正在准备本地翻译…"
+    : status === "translating"
+      ? progress.total > 0
+        ? `本译正在翻译 ${handled} / ${progress.total}`
+        : "本译正在翻译当前页面…"
+      : status === "paused"
+        ? "本译翻译已暂停"
+        : status === "cancelled"
+          ? "本译翻译已取消"
+          : status === "completed"
+            ? "本译翻译完成"
+            : "本译翻译未完成，请重试";
 }
 
 export function ensureTranslationStyle(document: Document, customColor?: string): void {

@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  isPanelCommand,
-  isSelectionCommand,
-  PANEL_COMMANDS,
-  SELECTION_COMMAND,
-} from "./commands";
+import { isPanelCommand, isSelectionCommand, PANEL_COMMANDS, SELECTION_COMMAND } from "./commands";
 
 describe("extension commands", () => {
   it("accepts every supported panel command", () => {

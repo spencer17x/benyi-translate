@@ -9,7 +9,13 @@
   <body>
     <main class="panel">
       <header class="brand">
-        <img class="brand-logo" src="../assets/icons/benyi-logo-48.png" alt="" width="40" height="40" />
+        <img
+          class="brand-logo"
+          src="../assets/icons/benyi-logo-48.png"
+          alt=""
+          width="40"
+          height="40"
+        />
         <h1>本译 <span class="wordmark-latin">Benyi</span></h1>
       </header>
       <p class="privacy-line">
@@ -17,7 +23,11 @@
         <span>隐私保护</span><strong>正文不上传</strong>
       </p>
 
-      <section id="translation-card" class="card translation-card" aria-labelledby="translation-heading">
+      <section
+        id="translation-card"
+        class="card translation-card"
+        aria-labelledby="translation-heading"
+      >
         <div class="translation-main">
           <div class="section-heading translation-heading">
             <div>
@@ -45,7 +55,13 @@
               <span id="start-label">开始翻译</span>
             </button>
             <button id="pause" class="button button-primary" type="button" hidden>
-              <img class="ui-icon" src="../assets/ui/player-pause.svg" alt="" width="18" height="18" />
+              <img
+                class="ui-icon"
+                src="../assets/ui/player-pause.svg"
+                alt=""
+                width="18"
+                height="18"
+              />
               <span>暂停翻译</span>
             </button>
             <button id="cancel" class="button button-secondary" type="button" hidden>
@@ -76,7 +92,9 @@
                 <input id="translation-color" type="color" value="#24683a" />
               </label>
               <output id="translation-color-value" for="translation-color">#24683A</output>
-              <button id="reset-translation-color" class="color-reset" type="button" disabled>默认</button>
+              <button id="reset-translation-color" class="color-reset" type="button" disabled>
+                默认
+              </button>
             </div>
           </div>
         </div>
@@ -85,15 +103,39 @@
           <h2 id="details-heading" class="visually-hidden">本页状态</h2>
           <dl>
             <div>
-              <dt><img class="ui-icon" src="../assets/ui/file-text.svg" alt="" width="15" height="15" />段落</dt>
+              <dt>
+                <img
+                  class="ui-icon"
+                  src="../assets/ui/file-text.svg"
+                  alt=""
+                  width="15"
+                  height="15"
+                />段落
+              </dt>
               <dd id="metric-total">0</dd>
             </div>
             <div>
-              <dt><img class="ui-icon" src="../assets/ui/circle-check.svg" alt="" width="15" height="15" />已完成</dt>
+              <dt>
+                <img
+                  class="ui-icon"
+                  src="../assets/ui/circle-check.svg"
+                  alt=""
+                  width="15"
+                  height="15"
+                />已完成
+              </dt>
               <dd id="metric-completed">0</dd>
             </div>
             <div>
-              <dt><img class="ui-icon" src="../assets/ui/alert-circle.svg" alt="" width="15" height="15" />失败</dt>
+              <dt>
+                <img
+                  class="ui-icon"
+                  src="../assets/ui/alert-circle.svg"
+                  alt=""
+                  width="15"
+                  height="15"
+                />失败
+              </dt>
               <dd id="metric-failed">0</dd>
             </div>
           </dl>
@@ -101,7 +143,13 @@
 
         <div class="translation-section undo-section">
           <button id="undo" class="undo-button" type="button" disabled>
-            <img class="ui-icon" src="../assets/ui/arrow-back-up.svg" alt="" width="20" height="20" />
+            <img
+              class="ui-icon"
+              src="../assets/ui/arrow-back-up.svg"
+              alt=""
+              width="20"
+              height="20"
+            />
             <span><strong>撤销本页翻译</strong><small>恢复到翻译前的原始状态</small></span>
           </button>
         </div>
@@ -115,13 +163,27 @@
         </summary>
         <div class="shortcut-content">
           <div class="shortcut-list" aria-label="本译快捷键">
-            <p class="shortcut-item" data-command="translate-page"><span>翻译当前页</span><kbd>读取中…</kbd></p>
-            <p class="shortcut-item" data-command="toggle-pause-translation"><span>暂停 / 继续</span><kbd>读取中…</kbd></p>
-            <p class="shortcut-item" data-command="cancel-translation"><span>取消翻译</span><kbd>读取中…</kbd></p>
-            <p class="shortcut-item" data-command="undo-translation"><span>撤销全部译文</span><kbd>读取中…</kbd></p>
-            <p class="shortcut-item" data-command="cycle-display-mode"><span>切换显示方式</span><kbd>读取中…</kbd></p>
-            <p class="shortcut-item" data-command="translate-selection"><span>翻译选中文本</span><kbd>读取中…</kbd></p>
-            <p class="shortcut-item" data-command="_execute_action"><span>工具栏翻译当前页</span><kbd>读取中…</kbd></p>
+            <p class="shortcut-item" data-command="translate-page">
+              <span>翻译当前页</span><kbd>读取中…</kbd>
+            </p>
+            <p class="shortcut-item" data-command="toggle-pause-translation">
+              <span>暂停 / 继续</span><kbd>读取中…</kbd>
+            </p>
+            <p class="shortcut-item" data-command="cancel-translation">
+              <span>取消翻译</span><kbd>读取中…</kbd>
+            </p>
+            <p class="shortcut-item" data-command="undo-translation">
+              <span>撤销全部译文</span><kbd>读取中…</kbd>
+            </p>
+            <p class="shortcut-item" data-command="cycle-display-mode">
+              <span>切换显示方式</span><kbd>读取中…</kbd>
+            </p>
+            <p class="shortcut-item" data-command="translate-selection">
+              <span>翻译选中文本</span><kbd>读取中…</kbd>
+            </p>
+            <p class="shortcut-item" data-command="_execute_action">
+              <span>工具栏翻译当前页</span><kbd>读取中…</kbd>
+            </p>
           </div>
           <button id="configure-shortcuts" class="shortcut-configure" type="button">
             <img class="ui-icon" src="../assets/ui/keyboard.svg" alt="" width="17" height="17" />
@@ -131,7 +193,9 @@
       </details>
 
       <footer class="panel-footer">
-        <p>控制面板可以随时关闭，整页翻译会在后台继续；首次使用时 Chrome 可能需要下载本地语言资源。</p>
+        <p>
+          控制面板可以随时关闭，整页翻译会在后台继续；首次使用时 Chrome 可能需要下载本地语言资源。
+        </p>
       </footer>
     </main>
 
