@@ -32,7 +32,9 @@ import {
   STYLE_ID,
   TASK_NOTICE_ID,
 } from "./dom";
+import { observePageNavigation } from "./navigation";
 import { initializeSelectionTranslation } from "./selection";
+import { acceptsDynamicContent } from "./task-policy";
 
 declare global {
   var __benyiContentScriptInstance: { buildId: string; dispose(): void } | undefined;
@@ -171,18 +173,20 @@ function initializeContentScript(): () => void {
   chrome.runtime.onConnect.addListener(handleRuntimeConnect);
   chrome.storage.onChanged.addListener(handlePreferenceChange);
 
+  const navigationObserver = observePageNavigation(window, invalidateForNavigation);
   const observer = new MutationObserver((mutations) => {
-    if (!activeTask || activeTask.status !== "translating") return;
+    navigationObserver.check();
+    if (!activeTask || !acceptsDynamicContent(activeTask.status)) return;
     const hasPageChange = mutations.some(
       (mutation) =>
         (mutation.type === "characterData" && !isExtensionNode(mutation.target)) ||
-        [...mutation.addedNodes].some((node) => !isExtensionNode(node)),
+        [...mutation.addedNodes, ...mutation.removedNodes].some((node) => !isExtensionNode(node)),
     );
     if (!hasPageChange) return;
 
     window.clearTimeout(mutationTimer);
     mutationTimer = window.setTimeout(() => {
-      void sendNewSegments();
+      void processDynamicContent();
     }, 250);
   });
 
@@ -191,9 +195,6 @@ function initializeContentScript(): () => void {
     childList: true,
     subtree: true,
   });
-  window.addEventListener("popstate", invalidateForNavigation);
-  window.addEventListener("hashchange", invalidateForNavigation);
-
   return dispose;
 
   function dispose(): void {
@@ -205,8 +206,7 @@ function initializeContentScript(): () => void {
       // The previous extension context can already be invalid after a development reload.
     }
     observer.disconnect();
-    window.removeEventListener("popstate", invalidateForNavigation);
-    window.removeEventListener("hashchange", invalidateForNavigation);
+    navigationObserver.dispose();
     window.clearTimeout(mutationTimer);
     window.clearTimeout(taskNoticeTimer);
     activePort?.disconnect();
@@ -542,16 +542,41 @@ function initializeContentScript(): () => void {
     };
   }
 
-  async function sendNewSegments(): Promise<void> {
-    if (!activeTask || activeTask.status !== "translating") return;
+  async function processDynamicContent(): Promise<void> {
+    const task = activeTask;
+    if (!task || !acceptsDynamicContent(task.status)) return;
+
     await discoverSegments();
-    if (!activeTask || activeTask.status !== "translating") return;
-    const queued = Array.from(activeTask.segments.values()).filter(
+    if (activeTask !== task || !acceptsDynamicContent(task.status)) return;
+
+    const hasQueuedSegments = Array.from(task.segments.values()).some(
       (state) => state.status === "queued",
     );
-    if (queued.length === 0) return;
-    sendPageState();
-    await processPendingSegments();
+    if (!hasQueuedSegments) {
+      sendPageState();
+      return;
+    }
+
+    try {
+      if (!pageTranslator) {
+        task.status = "preparing";
+        sendPageState();
+        const approved = await preparePageModels();
+        if (activeTask !== task) return;
+        if (!approved) {
+          task.status = "completed";
+          destroyPageModels();
+          sendPageState();
+          return;
+        }
+      }
+
+      task.status = "translating";
+      sendPageState();
+      await processPendingSegments();
+    } catch (error) {
+      failActiveTask(error);
+    }
   }
 
   async function processPendingSegments(): Promise<void> {
@@ -810,10 +835,8 @@ function initializeContentScript(): () => void {
   }
 
   function isExtensionNode(node: Node): boolean {
-    return (
-      node instanceof Element &&
-      Boolean(node.closest("[data-benyi-translation], [data-benyi-root]"))
-    );
+    const element = node instanceof Element ? node : node.parentElement;
+    return Boolean(element?.closest("[data-benyi-translation], [data-benyi-root]"));
   }
 
   function cacheKey(input: SegmentInput): string {
