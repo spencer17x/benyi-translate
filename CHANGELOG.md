@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/spencer17x/benyi-translate/compare/benyi-translate-v0.1.0...benyi-translate-v0.1.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* **ci:** restore green checks ([b34d8a5](https://github.com/spencer17x/benyi-translate/commit/b34d8a58bbd492ed57f7c4672eb209dd5572e152))
+
 ## [0.1.0](https://github.com/spencer17x/benyi-translate/releases/tag/v0.1.0) (2026-07-14)
 
 ### Features
