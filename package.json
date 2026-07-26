@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.5.0",
+  "packageManager": "pnpm@11.17.0",
   "engines": {
-    "node": ">=24.0.0",
-    "pnpm": ">=11.5.0"
+    "node": ">=24.18.0 <25",
+    "pnpm": ">=11.17.0 <12"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -17,9 +17,10 @@
     "fixture": "node scripts/serve-fixture.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "hooks:install": "husky",
     "lint:staged": "lint-staged --concurrent false",
-    "package": "pnpm run check && node scripts/package.mjs",
-    "prepare": "husky",
+    "package": "pnpm run check && pnpm run package:artifact",
+    "package:artifact": "node scripts/package.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

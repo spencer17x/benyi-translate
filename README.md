@@ -82,14 +82,14 @@ benyi-translate/
 
 ## 本地开发
 
-安装依赖并运行全部检查：
+使用 Node.js 24.18.0 和 pnpm 11.17.0，按锁文件安装依赖并运行全部检查：
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm run check
 ```
 
-`pnpm run check` 会依次执行格式检查、TypeScript 类型检查、单元测试和扩展构建，构建产物位于 `dist/`。首次安装依赖时也会自动启用项目的 Git hooks；具体规则见[贡献指南](CONTRIBUTING.md)。
+`pnpm run check` 会依次执行格式检查、TypeScript 类型检查、单元测试和扩展构建，构建产物位于 `dist/`。它和远端 CI 是权威门禁。安装依赖不会修改 Git hooks；如需可选的本地快速反馈，可显式运行 `pnpm hooks:install`，具体规则见[贡献指南](CONTRIBUTING.md)。
 
 生成与 GitHub Release 相同的 ZIP 和 SHA-256 文件：
 
