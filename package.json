@@ -12,13 +12,9 @@
     "build": "node scripts/build.mjs",
     "check": "pnpm run format:check && pnpm run check:code && pnpm run build",
     "check:code": "pnpm run typecheck && pnpm test",
-    "check:staged": "pnpm run lint:staged && git diff --cached --check",
-    "commitlint": "commitlint",
     "fixture": "node scripts/serve-fixture.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "hooks:install": "husky",
-    "lint:staged": "lint-staged --concurrent false",
     "package": "pnpm run check && pnpm run package:artifact",
     "package:artifact": "node scripts/package.mjs",
     "test": "vitest run",
@@ -26,8 +22,6 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@commitlint/cli": "21.2.1",
-    "@commitlint/config-conventional": "21.2.0",
     "@tabler/icons": "3.44.0",
     "@types/chrome": "^0.2.2",
     "@types/dom-chromium-ai": "^0.0.17",
@@ -35,9 +29,7 @@
     "@types/node": "^26.1.1",
     "esbuild": "^0.28.1",
     "fflate": "^0.8.3",
-    "husky": "9.1.7",
     "jsdom": "^29.1.1",
-    "lint-staged": "17.1.0",
     "prettier": "3.9.5",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"

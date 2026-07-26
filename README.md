@@ -89,7 +89,7 @@ pnpm install --frozen-lockfile
 pnpm run check
 ```
 
-`pnpm run check` 会依次执行格式检查、TypeScript 类型检查、单元测试和扩展构建，构建产物位于 `dist/`。它和远端 CI 是权威门禁。安装依赖不会修改 Git hooks；如需可选的本地快速反馈，可显式运行 `pnpm hooks:install`，具体规则见[贡献指南](CONTRIBUTING.md)。
+`pnpm run check` 会依次执行格式检查、TypeScript 类型检查、单元测试和扩展构建，构建产物位于 `dist/`。仓库不配置 Git hooks 或独立 CI 门禁，提交和推送前由维护者手动运行该命令。
 
 生成与 GitHub Release 相同的 ZIP 和 SHA-256 文件：
 
@@ -121,7 +121,7 @@ pnpm run fixture
 - `feat:` 生成次版本，例如 `0.1.0 → 0.2.0`。
 - `feat!:`、`fix!:` 或 `BREAKING CHANGE:` 生成主版本。
 
-Release PR 会同步更新 `package.json`、扩展 Manifest 和 `CHANGELOG.md`。合并 Release PR 后，CI 会完整检查项目、生成 ZIP 和 SHA-256，上传到草稿 GitHub Release；只有全部步骤成功后才会正式发布。
+Release PR 会同步更新 `package.json`、扩展 Manifest 和 `CHANGELOG.md`。合并 Release PR 后，发布工作流会完整检查项目、生成 ZIP 和 SHA-256，上传到草稿 GitHub Release；只有全部步骤成功后才会正式发布。
 
 ## 贡献
 

@@ -44,22 +44,16 @@ pnpm test
 pnpm run build
 ```
 
-`pnpm run check` 和远程 CI 是权威门禁。仓库不会在安装依赖时自动修改 Git hooks；需要可选的本地快速反馈时，可运行 `pnpm hooks:install`。启用后的 hooks 分工如下：
-
-- `pre-commit`：格式化暂存的源码和配置；修改 TypeScript 时运行类型检查与单元测试。
-- `commit-msg`：使用 commitlint 校验 Conventional Commits 格式。
-- `pre-push`：运行完整的 `pnpm run check`。
-- GitHub Actions：重新校验提交区间和空白错误，使用锁文件安装依赖，执行完整检查、构建与打包，并上传测试产物。
-
-hooks 是可选的快速反馈，不替代完整检查或远程 CI。维护者应将 GitHub 分支规则中的 `CI / verify` 设为合并前必需检查。
+仓库不配置 `pre-commit`、`commit-msg`、`pre-push` 等 Git hooks，也不设置独立 CI 门禁。提交和推送前由维护者手动运行 `pnpm run check`；正式发布时，发布工作流会再次检查并打包。
 
 ## Pull Request
 
-1. 从默认分支创建功能分支。
-2. 让每个 PR 聚焦一个问题。
-3. 更新相关需求、架构或用户文档。
-4. 添加或更新与变更对应的测试。
-5. 在 PR 中说明变更内容、原因、用户影响和验证方式。
+仓库日常开发直接提交到 `main`，不保留长期功能分支。外部贡献请从个人 fork 提交 Pull Request，并确保：
+
+1. 每个 PR 聚焦一个问题。
+2. 更新相关需求、架构或用户文档。
+3. 添加或更新与变更对应的测试。
+4. 说明变更内容、原因、用户影响和验证方式。
 
 ## 提交信息
 

@@ -74,11 +74,9 @@
 
 - 除非用户明确要求，不要创建提交、推送、开 PR、修改标签或重写历史。
 - 提交信息必须符合 Conventional Commits，例如 `fix(content): resume translation for dynamic nodes`。
-- **核心 type：** `build`、`chore`、`ci`、`docs`、`feat`、`fix`、`perf`、`refactor`、`revert`、`test`。
-- **本仓额外 type：** `style`（commitlint conventional 已允许；仅用于纯格式变更时可选；也可使用 `chore`）。
+- 允许的 type：`build`、`chore`、`ci`、`docs`、`feat`、`fix`、`perf`、`refactor`、`revert`、`style`、`test`。
 - 标题不超过 100 字符，scope 使用 kebab-case。
-- `pnpm install` 不自动安装 Git hooks；需要本地快速反馈时可显式运行 `pnpm hooks:install`。
-- 无论是否启用 hooks，`pnpm run check` 和远端 CI 都是权威门禁，不得以 hooks 通过替代完整检查。
+- 仓库不配置 Git hooks 或独立 CI 门禁；提交和推送前手动运行 `pnpm run check`。
 - 提交前确认暂存范围只包含本任务，并保留用户已有或无关的工作区改动。
 
 ## 完成定义
