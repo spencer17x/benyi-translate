@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "本译 Benyi",
   "description": "本地运行、保留本意的隐私优先双语网页翻译。",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minimum_chrome_version": "138",
   "icons": {
     "16": "assets/icons/benyi-logo-16.png",
@@ -10,7 +10,13 @@
     "48": "assets/icons/benyi-logo-48.png",
     "128": "assets/icons/benyi-logo-128.png"
   },
-  "permissions": ["activeTab", "contextMenus", "scripting", "sidePanel", "storage"],
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "scripting",
+    "sidePanel",
+    "storage"
+  ],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
