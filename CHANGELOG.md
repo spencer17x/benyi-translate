@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/spencer17x/benyi-translate/compare/v0.1.1...v0.1.2) (2026-07-27)
+
+
+### Bug Fixes
+
+* **ci:** restore green checks ([b34d8a5](https://github.com/spencer17x/benyi-translate/commit/b34d8a58bbd492ed57f7c4672eb209dd5572e152))
+* **release:** stabilize generated manifest formatting ([a567567](https://github.com/spencer17x/benyi-translate/commit/a567567da3b9db74ea4904c4c507ae464201715a))
+
 ## [0.1.1](https://github.com/spencer17x/benyi-translate/compare/benyi-translate-v0.1.0...benyi-translate-v0.1.1) (2026-07-26)
 
 
