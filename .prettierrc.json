@@ -1,5 +1,13 @@
 {
   "endOfLine": "lf",
   "printWidth": 100,
-  "proseWrap": "preserve"
+  "proseWrap": "preserve",
+  "overrides": [
+    {
+      "files": "src/manifest.json",
+      "options": {
+        "printWidth": 60
+      }
+    }
+  ]
 }
